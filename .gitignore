@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Data (keep structure, ignore contents)
+data/raw/*
+data/processed/*
+data/ground_truth/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/ground_truth/.gitkeep
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# ML artifacts
+*.pkl
+*.pickle
+*.h5
+*.pt
+*.pth
+*.onnx
+*.model
+runs/
+checkpoints/
+outputs/
+artifacts/
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
