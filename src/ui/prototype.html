@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pythia — Simulation Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Syne:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:           #0D0D0B;
+      --surface:      #141410;
+      --surface-warm: #16140E;
+      --border:       rgba(255,255,255,0.06);
+      --text-primary: #6A6762;
+      --text-muted:   #3D3D38;
+      --text-dim:     #1E1E1C;
+      --text-ui:      #6E6A66;
+      --gold:         #A88C52;
+      --gold-dim:     #5E4E28;
+      --gold-ui:      #8A7448;
+      --gold-glow:    rgba(196,169,106,0.12);
+
+      --p0: #B8907A; --p0g: rgba(184,144,122,0.3);
+      --p1: #7A9BA8; --p1g: rgba(122,155,168,0.3);
+      --p2: #A09B7A; --p2g: rgba(160,155,122,0.3);
+      --p3: #B8887A; --p3g: rgba(184,136,122,0.3);
+      --p4: #8A9B8A; --p4g: rgba(138,155,138,0.3);
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: 'Syne', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── LAYOUT ─────────────────────────────────────────── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────── */
+    .hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 28px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .hd-logo {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: 20px;
+      letter-spacing: 0.01em;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hd-logo-glyph {
+      font-style: normal;
+      font-size: 14px;
+      color: var(--gold);
+      letter-spacing: 0.04em;
+      font-family: 'Syne', sans-serif;
+      font-weight: 300;
+    }
+
+    .hd-center {
+      text-align: center;
+    }
+    .hd-scenario-label {
+      font-size: 9px;
+      font-weight: 300;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-ui);
+    }
+    .hd-scenario-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-top: 3px;
+      letter-spacing: 0.01em;
+    }
+
+    .hd-tick {
+      text-align: right;
+    }
+    .hd-tick-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: var(--text-muted);
+      letter-spacing: 0.12em;
+    }
+    .hd-tick-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 22px;
+      font-weight: 300;
+      color: var(--text-primary);
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin-top: 2px;
+    }
+    .hd-run {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: var(--gold-dim);
+      letter-spacing: 0.1em;
+      margin-top: 2px;
+    }
+
+    .restart-btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--gold-ui);
+      background: none;
+      border: 1px solid var(--gold-ui);
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .restart-btn:hover {
+      color: var(--gold);
+      border-color: var(--gold);
+    }
+
+    /* ── PROGRESS ───────────────────────────────────────── */
+    .progress {
+      height: 1px;
+      background: var(--text-dim);
+      flex-shrink: 0;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--gold);
+      width: 0%;
+      transition: width 1s cubic-bezier(0.4,0,0.2,1);
+      box-shadow: 0 0 6px var(--gold);
+    }
+
+    /* ── MAIN ────────────────────────────────────────────── */
+    .main {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* ── STAGE ───────────────────────────────────────────── */
+    .stage {
+      width: 210px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      padding: 20px 18px;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    .stage::-webkit-scrollbar { display: none; }
+
+    .zone-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-ui);
+      margin-bottom: 18px;
+    }
+
+    /* ── PROTAGONIST CARD ───────────────────────────────── */
+    .proto {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.028);
+      opacity: 0;
+      transform: translateX(-12px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .proto.visible   { opacity: 1; transform: translateX(0); }
+    .proto.in-temple { opacity: 0.25; transform: translateX(16px); }
+    .proto.returning { opacity: 1; transform: translateX(0); }
+
+    .proto-ring-wrap {
+      position: relative;
+      width: 42px;
+      height: 42px;
+      flex-shrink: 0;
+    }
+    .proto-ring-svg {
+      position: absolute; inset: 0;
+      width: 42px; height: 42px;
+    }
+    .proto-ring-bg { fill: none; stroke: var(--text-dim); stroke-width: 1.5; }
+    .proto-ring-fill {
+      fill: none;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-dasharray: 119.4;
+      stroke-dashoffset: 119.4;
+      transform-origin: 21px 21px;
+      transform: rotate(-90deg);
+      transition: stroke-dashoffset 1.1s cubic-bezier(0.4,0,0.2,1),
+                  stroke 0.9s ease;
+    }
+    .proto-dot {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      transition: opacity 0.9s ease, box-shadow 0.9s ease;
+      opacity: 0;
+    }
+    .proto-dot.alive { opacity: 1; }
+    .proto-dot.pulse { animation: dot-pulse 2.8s ease-in-out infinite; }
+    @keyframes dot-pulse {
+      0%,100% { box-shadow: 0 0 6px 2px var(--glow); }
+      50%      { box-shadow: 0 0 18px 7px var(--glow); }
+    }
+    .proto-dot.flash { animation: dot-flash 1.4s ease forwards; }
+    @keyframes dot-flash {
+      0%   { box-shadow: 0 0 0   0   rgba(196,169,106,0); }
+      25%  { box-shadow: 0 0 28px 10px rgba(196,169,106,0.55); }
+      100% { box-shadow: 0 0 8px 3px  rgba(196,169,106,0.18); }
+    }
+
+    .proto-info { flex: 1; min-width: 0; }
+    .proto-name {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: 0.01em;
+    }
+    .proto-trait {
+      font-size: 9.5px;
+      font-weight: 300;
+      color: var(--gold);
+      letter-spacing: 0.03em;
+      margin-top: 2px;
+      opacity: 0;
+      transition: opacity 1.2s ease 0.5s;
+    }
+    .proto.visible .proto-trait { opacity: 1; }
+    .proto-conf {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: var(--text-muted);
+      margin-top: 3px;
+      transition: color 0.4s;
+    }
+
+    /* ── ARENA ───────────────────────────────────────────── */
+    .arena {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    #arenaCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .crowd-label {
+      position: absolute;
+      bottom: 14px;
+      left: 0; right: 0;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8.5px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-ui);
+      pointer-events: none;
+      transition: opacity 0.4s;
+    }
+
+    /* ── TEMPLE ──────────────────────────────────────────── */
+    .temple {
+      width: 190px;
+      flex-shrink: 0;
+      border-left: 1px solid var(--border);
+      background: var(--surface-warm);
+      padding: 20px 16px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .temple::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 50% at 50% 100%,
+        rgba(196,169,106,0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .temple-zone-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold-ui);
+      margin-bottom: 18px;
+      flex-shrink: 0;
+    }
+    .temple-idle {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .temple-idle-glyph {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: 11px;
+      color: var(--text-ui);
+      text-align: center;
+      line-height: 1.8;
+    }
+    .temple-idle-line {
+      width: 24px;
+      height: 1px;
+      background: var(--text-muted);
+    }
+
+    .temple-active {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .temple-active.show { opacity: 1; transform: translateY(0); }
+
+    .temple-spinner {
+      width: 44px; height: 44px;
+      position: relative;
+    }
+    .temple-spinner svg {
+      width: 44px; height: 44px;
+      animation: temple-spin 3.5s linear infinite;
+    }
+    @keyframes temple-spin { to { transform: rotate(360deg); } }
+    .temple-spin-ring {
+      fill: none;
+      stroke: var(--gold);
+      stroke-width: 1;
+      stroke-linecap: round;
+      stroke-dasharray: 90 20;
+      opacity: 0.8;
+    }
+    .temple-dot {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+    }
+
+    .temple-agent-name {
+      font-family: 'Syne', sans-serif;
+      font-weight: 500;
+      font-size: 11px;
+      color: var(--gold);
+      letter-spacing: 0.02em;
+    }
+    .temple-amend {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8.5px;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.9;
+      letter-spacing: 0.02em;
+      min-height: 36px;
+    }
+    .amend-char {
+      opacity: 0;
+      animation: achar 0.04s forwards;
+    }
+    @keyframes achar { to { opacity: 1; } }
+
+    /* ── FOOTER ──────────────────────────────────────────── */
+    .footer {
+      height: 64px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 28px;
+      gap: 18px;
+      flex-shrink: 0;
+    }
+    .footer-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-ui);
+      white-space: nowrap;
+    }
+    #accuracySvg {
+      flex: 1;
+      height: 32px;
+      overflow: visible;
+    }
+    .acc-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px;
+      font-weight: 300;
+      color: var(--text-primary);
+      letter-spacing: -0.03em;
+      white-space: nowrap;
+    }
+    .acc-unit {
+      font-size: 9px;
+      color: var(--text-muted);
+      vertical-align: super;
+      margin-left: 1px;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <header class="hd">
+    <div class="hd-logo">
+      Pythia
+      <span class="hd-logo-glyph">◈ ORACLE</span>
+    </div>
+    <div class="hd-center">
+      <div class="hd-scenario-label">Active Scenario</div>
+      <div class="hd-scenario-name">Market Sentiment — Fed Rate Decision</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:20px">
+      <button class="restart-btn" onclick="restartSim()">↺ Restart</button>
+      <div class="hd-tick">
+        <div class="hd-tick-label">TICK</div>
+        <div class="hd-tick-val" id="tickVal">00 / 20</div>
+        <div class="hd-run" id="runVal">RUN · 01</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+
+  <div class="main">
+
+    <!-- STAGE -->
+    <div class="stage">
+      <div class="zone-label">// The Stage</div>
+      <div id="protoList"></div>
+    </div>
+
+    <!-- ARENA -->
+    <div class="arena">
+      <canvas id="arenaCanvas"></canvas>
+      <div class="crowd-label" id="crowdLabel">Herd Neutrality</div>
+    </div>
+
+    <!-- TEMPLE -->
+    <div class="temple">
+      <div class="temple-zone-label">// Temple of Learning</div>
+      <div class="temple-idle" id="templeIdle">
+        <div class="temple-idle-line"></div>
+        <div class="temple-idle-glyph">The oracle<br>awaits the<br>fallen</div>
+        <div class="temple-idle-line"></div>
+      </div>
+      <div class="temple-active" id="templeActive">
+        <div class="temple-spinner">
+          <svg viewBox="0 0 44 44">
+            <circle class="temple-spin-ring" cx="22" cy="22" r="17"/>
+          </svg>
+          <div class="temple-dot" id="templeDot"></div>
+        </div>
+        <div class="temple-agent-name" id="templeAgentName"></div>
+        <div class="temple-amend" id="templeAmend"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-label">Prediction<br>Accuracy</div>
+    <svg id="accuracySvg" viewBox="0 0 500 32" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#C4A96A" stop-opacity="0.18"/>
+          <stop offset="100%" stop-color="#C4A96A" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path id="accArea" fill="url(#ag)" stroke="none" d=""/>
+      <polyline id="accLine" fill="none" stroke="#C4A96A" stroke-width="1.5"
+        stroke-linecap="round" stroke-linejoin="round" points=""/>
+    </svg>
+    <div class="acc-val" id="accVal">—<span class="acc-unit">%</span></div>
+  </footer>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   DATA
+═══════════════════════════════════════════════════════════ */
+const PROTOS = [
+  { name:'Retail Rachel',   trait:'Loss Aversion',      color:'#B8907A', glow:'rgba(184,144,122,0.32)' },
+  { name:'Instit. Ivan',    trait:'Anchoring Bias',      color:'#7A9BA8', glow:'rgba(122,155,168,0.32)' },
+  { name:'Adopter Elias',   trait:'FOMO Drive',          color:'#A09B7A', glow:'rgba(160,155,122,0.32)' },
+  { name:'Panic Pete',      trait:'Reactance Theory',    color:'#C08878', glow:'rgba(192,136,120,0.32)' },
+  { name:'Clara C.',        trait:'Social Reactance',    color:'#8A9B8A', glow:'rgba(138,155,138,0.32)' },
+];
+
+const CROWD_STATES = [
+  'Herd Neutrality',
+  'Social Contagion',
+  'Bandwagon Effect',
+  'Groupthink Lock',
+  'Deindividuation',
+];
+
+const AMENDMENTS = [
+  ['Recalibrating', 'loss threshold...'],
+  ['Reweighting', 'anchor signals...'],
+  ['Adjusting FOMO', 'sensitivity...'],
+  ['Retuning panic', 'trigger curve...'],
+  ['Amending social', 'reactance bias...'],
+];
+
+const TICKS = 20;
+const TICK_MS = 2300;
+
+/* ═══════════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════════ */
+let tick = 0;
+let run  = 1;
+let templeIdx = null;
+let accuracyHistory = [];
+let accuracy = 44;
+
+let pState = PROTOS.map(() => ({
+  spawned: false, conf: 0, inTemple: false, returning: false,
+}));
+
+/* ═══════════════════════════════════════════════════════════
+   PROTAGONIST RENDERING
+═══════════════════════════════════════════════════════════ */
+const CIRC = 2 * Math.PI * 18;   // r=18 → circumference ≈ 113.1
+
+function renderProtos() {
+  const list = document.getElementById('protoList');
+  list.innerHTML = '';
+  PROTOS.forEach((p, i) => {
+    const s   = pState[i];
+    const off = CIRC * (1 - s.conf / 100);
+
+    let cls = 'proto';
+    if (s.spawned)   cls += ' visible';
+    if (s.inTemple)  cls += ' in-temple';
+    if (s.returning) cls += ' returning';
+
+    let dotCls = 'proto-dot';
+    if (s.spawned && !s.inTemple)  dotCls += ' alive pulse';
+    if (s.spawned && s.returning)  dotCls += ' alive flash';
+
+    list.innerHTML += `
+      <div class="${cls}" style="transition-delay:${i*0.1}s">
+        <div class="proto-ring-wrap">
+          <svg class="proto-ring-svg" viewBox="0 0 42 42">
+            <circle class="proto-ring-bg" cx="21" cy="21" r="18"/>
+            <circle class="proto-ring-fill"
+              stroke="${s.inTemple ? '#5A4A28' : p.color}"
+              stroke-dashoffset="${off.toFixed(1)}"
+              cx="21" cy="21" r="18"/>
+          </svg>
+          <div class="${dotCls}"
+            style="background:${p.color};--glow:${p.glow}">
+          </div>
+        </div>
+        <div class="proto-info">
+          <div class="proto-name">${p.name}</div>
+          <div class="proto-trait">${p.trait}</div>
+          <div class="proto-conf">${s.spawned ? Math.round(s.conf)+'%' : '—'}</div>
+        </div>
+      </div>`;
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TEMPLE
+═══════════════════════════════════════════════════════════ */
+function showTempleIdle() {
+  document.getElementById('templeIdle').style.display   = '';
+  const ta = document.getElementById('templeActive');
+  ta.classList.remove('show');
+}
+
+function showTempleAgent(idx) {
+  const p = PROTOS[idx];
+  document.getElementById('templeIdle').style.display = 'none';
+  document.getElementById('templeAgentName').textContent = p.name;
+  document.getElementById('templeDot').style.background = p.color;
+  document.getElementById('templeAmend').innerHTML = '';
+
+  const ta = document.getElementById('templeActive');
+  ta.classList.add('show');
+
+  // Typewriter
+  const words = AMENDMENTS[idx].join(' ');
+  let ci = 0;
+  const el = document.getElementById('templeAmend');
+  function typeNext() {
+    if (ci >= words.length) return;
+    const sp = document.createElement('span');
+    sp.className = 'amend-char';
+    sp.style.animationDelay = `${ci * 42}ms`;
+    sp.textContent = words[ci] === ' ' ? '\u00A0' : words[ci];
+    el.appendChild(sp);
+    ci++;
+    setTimeout(typeNext, 44);
+  }
+  setTimeout(typeNext, 400);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ACCURACY CHART
+═══════════════════════════════════════════════════════════ */
+function drawAccuracy() {
+  const pts = accuracyHistory;
+  if (!pts.length) return;
+  const W = 500, H = 32, PAD = 6;
+  const minA = 30, maxA = 100;
+
+  const coords = pts.map((a, i) => {
+    const x = PAD + (i / Math.max(pts.length - 1, 1)) * (W - PAD*2);
+    const y = H - PAD - ((a - minA) / (maxA - minA)) * (H - PAD*2);
+    return [x, y];
+  });
+
+  const lineStr  = coords.map(([x,y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const lastX    = coords[coords.length-1][0];
+  const areaStr  = `${PAD},${H} ${lineStr} ${lastX.toFixed(1)},${H}`;
+
+  document.getElementById('accLine').setAttribute('points', lineStr);
+  document.getElementById('accArea').setAttribute('d', `M ${PAD} ${H} L ${areaStr.slice(areaStr.indexOf(' ')+1)} Z`);
+  document.getElementById('accVal').innerHTML =
+    `${Math.round(pts[pts.length-1])}<span class="acc-unit">%</span>`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PARTICLE SYSTEM
+═══════════════════════════════════════════════════════════ */
+const canvas = document.getElementById('arenaCanvas');
+const ctx    = canvas.getContext('2d');
+let   ptcls  = [];
+let   crowdStateIdx = 0;
+
+function resizeCanvas() {
+  const W = canvas.offsetWidth;
+  const H = canvas.offsetHeight;
+  if (!W || !H) return;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  initPtcls(W, H);
+}
+
+function initPtcls(W, H) {
+  ptcls = Array.from({length: 290}, () => ({
+    x:  Math.random() * W,
+    y:  Math.random() * H,
+    vx: (Math.random() - 0.5) * 0.3,
+    vy: (Math.random() - 0.5) * 0.3,
+    sz: 2.2 + Math.random() * 1.4,
+    ct: 0,   // color interpolation target (0=rest, 1=active)
+  }));
+}
+
+function crowdCfg(state, W, H) {
+  const cx = W/2, cy = H/2;
+  return [
+    // state 0 — Herd Neutrality
+    { attr: 0,      cx, cy,         spd: 0.28, ct: 0,    chaos: 0,    panic: false },
+    // state 1 — Social Contagion
+    { attr: 0.004,  cx, cy,         spd: 0.55, ct: 0.42, chaos: 0,    panic: false },
+    // state 2 — Bandwagon
+    { attr: 0.009,  cx, cy: cy*0.85, spd: 0.75, ct: 0.72, chaos: 0.12, panic: false },
+    // state 3 — Groupthink
+    { attr: 0.022,  cx, cy: cy*0.65, spd: 0.35, ct: 0.92, chaos: 0,    panic: false },
+    // state 4 — Deindividuation
+    { attr: -0.006, cx, cy,         spd: 2.6,  ct: 0.55, chaos: 1.8,  panic: true  },
+  ][state] || { attr:0, cx, cy, spd:0.3, ct:0, chaos:0, panic:false };
+}
+
+function lerpRGB(a, b, t) {
+  return [
+    Math.round(a[0] + (b[0]-a[0])*t),
+    Math.round(a[1] + (b[1]-a[1])*t),
+    Math.round(a[2] + (b[2]-a[2])*t),
+  ];
+}
+const C_REST   = [58,  58,  56 ];
+const C_ACTIVE = [200, 194, 185];
+const C_PANIC  = [160, 72,  60 ];
+
+function animPtcls() {
+  const W = canvas.offsetWidth;
+  const H = canvas.offsetHeight;
+  const cfg = crowdCfg(crowdStateIdx, W, H);
+  ctx.clearRect(0, 0, W, H);
+
+  ptcls.forEach(p => {
+    if (cfg.attr !== 0) {
+      p.vx += (cfg.cx - p.x) * cfg.attr;
+      p.vy += (cfg.cy - p.y) * cfg.attr;
+    }
+    if (cfg.chaos > 0) {
+      p.vx += (Math.random()-0.5) * cfg.chaos;
+      p.vy += (Math.random()-0.5) * cfg.chaos;
+    }
+    const spd = Math.hypot(p.vx, p.vy);
+    if (spd > cfg.spd) { p.vx = p.vx/spd*cfg.spd; p.vy = p.vy/spd*cfg.spd; }
+    p.vx *= 0.98; p.vy *= 0.98;
+    p.x += p.vx;  p.y += p.vy;
+    if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+    if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+    p.ct += (cfg.ct - p.ct) * 0.018;
+
+    const rgb   = cfg.panic ? lerpRGB(C_REST, C_PANIC, p.ct) : lerpRGB(C_REST, C_ACTIVE, p.ct);
+    const alpha = 0.38 + p.ct * 0.48;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.sz, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`;
+    ctx.fill();
+  });
+  requestAnimationFrame(animPtcls);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TICK ENGINE
+═══════════════════════════════════════════════════════════ */
+function pickTempleCandidate() {
+  const active = pState.map((s,i) => s.spawned && !s.inTemple ? i : -1).filter(i=>i>=0);
+  return active.length ? active[Math.floor(Math.random()*active.length)] : null;
+}
+
+function sendToTemple(idx) {
+  templeIdx = idx;
+  pState[idx].inTemple  = true;
+  pState[idx].returning = false;
+  renderProtos();
+  showTempleAgent(idx);
+}
+
+function returnFromTemple() {
+  if (templeIdx === null) return;
+  const idx = templeIdx;
+  pState[idx].inTemple  = false;
+  pState[idx].returning = true;
+  pState[idx].conf      = 68 + Math.random()*26;
+  templeIdx = null;
+  renderProtos();
+  showTempleIdle();
+  setTimeout(() => { pState[idx].returning = false; renderProtos(); }, 1600);
+}
+
+function endOfRun() {
+  tick = 0;
+  run++;
+  const gains = [9, 8, 6, 5, 4, 3, 2];
+  const gain  = gains[Math.min(run-2, gains.length-1)];
+  accuracy    = Math.min(97, accuracy + gain + (Math.random()*1.5 - 0.75));
+  accuracyHistory.push(accuracy);
+  drawAccuracy();
+  document.getElementById('runVal').textContent = `RUN · ${String(run).padStart(2,'0')}`;
+  if (templeIdx !== null) returnFromTemple();
+  pState.forEach(s => { if (!s.inTemple) s.conf = 28 + Math.random()*32; });
+}
+
+function advanceTick() {
+  tick++;
+  if (tick > TICKS) { endOfRun(); return; }
+
+  // Header
+  document.getElementById('tickVal').textContent =
+    `${String(tick).padStart(2,'0')} / 20`;
+  document.getElementById('progressFill').style.width =
+    `${(tick/TICKS)*100}%`;
+
+  // Crowd state
+  const si = Math.min(Math.floor((tick/TICKS) * CROWD_STATES.length), CROWD_STATES.length-1);
+  if (si !== crowdStateIdx) {
+    crowdStateIdx = si;
+    document.getElementById('crowdLabel').textContent = CROWD_STATES[si];
+  }
+
+  // Confidence drift
+  pState.forEach((s, i) => {
+    if (s.spawned && !s.inTemple) {
+      s.conf = Math.max(8, Math.min(97, s.conf + (Math.random()-0.46)*9));
+    }
+  });
+
+  // Temple logic
+  if (tick === 9 && templeIdx === null) {
+    const c = pickTempleCandidate();
+    if (c !== null) sendToTemple(c);
+  }
+  if (tick === 16 && templeIdx !== null) returnFromTemple();
+
+  renderProtos();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESTART
+═══════════════════════════════════════════════════════════ */
+let tickTimer = null;
+let simGen = 0;
+
+function restartSim() {
+  simGen++;
+  const gen = simGen;
+  clearInterval(tickTimer);
+  tickTimer = null;
+
+  tick = 0; run = 1; templeIdx = null;
+  accuracyHistory = []; accuracy = 44;
+  crowdStateIdx = 0;
+  pState = PROTOS.map(() => ({ spawned:false, conf:0, inTemple:false, returning:false }));
+
+  document.getElementById('tickVal').textContent      = '00 / 20';
+  document.getElementById('runVal').textContent       = 'RUN · 01';
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('crowdLabel').textContent   = 'Herd Neutrality';
+  document.getElementById('accLine').setAttribute('points','');
+  document.getElementById('accArea').setAttribute('d','');
+  document.getElementById('accVal').innerHTML         = '—<span class="acc-unit">%</span>';
+  renderProtos();
+  showTempleIdle();
+
+  PROTOS.forEach((_, i) => {
+    setTimeout(() => {
+      if (simGen !== gen) return;
+      pState[i].spawned = true;
+      pState[i].conf    = 28 + Math.random()*28;
+      renderProtos();
+    }, 600 + i * 320);
+  });
+
+  setTimeout(() => {
+    if (simGen !== gen) return;
+    accuracyHistory.push(accuracy);
+    drawAccuracy();
+  }, 1800);
+
+  setTimeout(() => {
+    if (simGen !== gen) return;
+    tickTimer = setInterval(advanceTick, TICK_MS);
+  }, 3200);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INIT — deferred to after first layout paint
+═══════════════════════════════════════════════════════════ */
+window.addEventListener('resize', resizeCanvas);
+
+window.addEventListener('load', function () {
+  resizeCanvas();
+  animPtcls();
+  renderProtos();
+  showTempleIdle();
+
+  // Stagger-spawn protagonists
+  const gen = simGen;
+  PROTOS.forEach((_, i) => {
+    setTimeout(() => {
+      if (simGen !== gen) return;
+      pState[i].spawned = true;
+      pState[i].conf    = 28 + Math.random() * 28;
+      renderProtos();
+    }, 600 + i * 320);
+  });
+
+  // First accuracy point
+  setTimeout(() => {
+    if (simGen !== gen) return;
+    accuracyHistory.push(accuracy);
+    drawAccuracy();
+  }, 1800);
+
+  // Start ticks
+  setTimeout(() => {
+    if (simGen !== gen) return;
+    tickTimer = setInterval(advanceTick, TICK_MS);
+  }, 3200);
+});
+</script>
+</body>
+</html>
