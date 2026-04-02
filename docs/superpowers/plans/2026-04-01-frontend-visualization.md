@@ -6,7 +6,7 @@
 
 **Architecture:** A Vite + React SPA in `src/ui/`. Simulation state lives in a `useReducer`-based hook (`useSimulation`). Components are dumb — they receive props and fire callbacks. The Canvas particle system lives inside `Arena.jsx` via a `useEffect`. No external state library needed.
 
-**Tech Stack:** Vite 5, React 19, Vitest, @testing-library/react, jsdom, CSS custom properties (no CSS-in-JS).
+**Tech Stack:** Vite 6, React 19, Vitest, @testing-library/react, jsdom, CSS custom properties (no CSS-in-JS).
 
 ---
 
