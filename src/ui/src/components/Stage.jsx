@@ -8,11 +8,12 @@ function ProtagNode({ protagonist, state, delay }) {
   // Flash animation on return from temple
   useEffect(() => {
     if (!state.returning || !dotRef.current) return
-    dotRef.current.animate([
+    const anim = dotRef.current.animate([
       { boxShadow: '0 0 0 0 rgba(196,169,106,0)' },
       { boxShadow: '0 0 28px 10px rgba(196,169,106,0.55)' },
       { boxShadow: '0 0 8px 3px rgba(196,169,106,0.18)' },
     ], { duration: 1400, fill: 'forwards' })
+    return () => anim.cancel()
   }, [state.returning])
 
   const visible  = state.spawned
