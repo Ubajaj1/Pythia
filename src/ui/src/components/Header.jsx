@@ -55,6 +55,8 @@ export default function Header({ scenarioName, tick, run, progressPercent, onRes
         {/* Tick + Restart */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           <button
+            type="button"
+            aria-label="Restart simulation"
             onClick={onRestart}
             style={{
               fontFamily: 'var(--font-mono)',
