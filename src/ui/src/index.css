@@ -14,6 +14,9 @@
   --font-display: 'Playfair Display', Georgia, serif;
   --font-ui:      'Syne', system-ui, sans-serif;
   --font-mono:    'JetBrains Mono', 'Courier New', monospace;
+
+  font-size: 16px;
+  line-height: 1.5;
 }
 
 *, *::before, *::after {
