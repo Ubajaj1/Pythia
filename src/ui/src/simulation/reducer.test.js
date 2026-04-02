@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { simReducer, makeInitialState, TICKS_PER_RUN } from './reducer'
+import { simReducer, makeInitialState } from './reducer'
 
 const MOCK_PROTAGONISTS = [
   { id: 'a', name: 'Agent A', trait: 'Trait A', color: '#aaa', glow: 'rgba(0,0,0,0)' },
