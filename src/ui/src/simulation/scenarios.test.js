@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SCENARIOS, CROWD_STATES, getScenario } from './scenarios'
+import { CROWD_STATES, getScenario } from './scenarios'
 
 describe('scenarios', () => {
   it('CROWD_STATES has 5 entries', () => {
