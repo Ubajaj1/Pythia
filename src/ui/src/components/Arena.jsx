@@ -1,5 +1,4 @@
 import { useRef, useEffect } from 'react'
-import { CROWD_STATES } from '../simulation/scenarios'
 
 const C_REST   = [58,  58,  56]
 const C_ACTIVE = [200, 194, 185]
