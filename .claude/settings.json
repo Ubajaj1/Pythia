@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import json,sys; content=open('docs/PROGRESS.md').read(); print(json.dumps({'systemMessage': content}))\" 2>/dev/null || true",
+            "statusMessage": "Loading project progress..."
+          }
+        ]
+      }
+    ]
+  }
+}
