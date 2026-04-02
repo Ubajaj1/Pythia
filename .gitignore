@@ -65,3 +65,16 @@ Thumbs.db
 .coverage
 htmlcov/
 .mypy_cache/
+
+# Claude Code — local-only settings (personal permissions, hooks)
+.claude/settings.local.json
+
+# Tool artifacts
+.playwright-mcp/
+
+# Screenshots / local images
+*.png
+*.jpg
+*.jpeg
+!docs/**/*.png
+!docs/**/*.jpg

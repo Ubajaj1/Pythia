@@ -1,4 +1,4 @@
-# Pythia 🔮
+# Pythia
 ### *Consult the oracle before you decide.*
 
 > A self-improving multi-agent simulation engine that shows you how the world responds to your decisions — before you make them.

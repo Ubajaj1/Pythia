@@ -4,6 +4,18 @@
 
 ---
 
+## Session Log
+
+### 2026-04-02
+- Built complete React visualization app (`src/ui/`) converting the prototype HTML mock into a testable, componentized SPA
+- 11 files implemented across simulation logic and UI components
+- 18/18 tests passing (Vitest + jsdom)
+- Merged `feat/react-visualization` branch into main and pushed to GitHub
+- Set up session automation: SessionStart hook injects this doc, Stop hook auto-pushes commits
+- Gitignored sensitive artifacts: `.claude/settings.local.json`, `.playwright-mcp/`, screenshots
+
+---
+
 ## Current State — 2026-04-02
 
 **Phase 3 (Frontend Visualization) — COMPLETE**
