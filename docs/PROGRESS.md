@@ -6,6 +6,14 @@
 
 ## Session Log
 
+### 2026-04-05
+- Designed Phase 1 (Simulation Backbone) end-to-end through brainstorming session
+- Key decisions: custom engine (no OASIS/CAMEL-AI), local models via Ollama, structured JSON agent output, dual input (CLI + API)
+- Wrote full design spec: `docs/superpowers/specs/2026-04-04-phase1-simulation-backbone-design.md`
+- Wrote implementation plan (10 tasks, ~55 TDD steps): `docs/superpowers/plans/2026-04-04-phase1-simulation-backbone.md`
+- Wrote design note for Phase 2+ features: `docs/superpowers/specs/2026-04-05-graph-memory-and-self-healing-design-note.md`
+- No code written yet — design and planning only
+
 ### 2026-04-02
 - Built complete React visualization app (`src/ui/`) converting the prototype HTML mock into a testable, componentized SPA
 - 11 files implemented across simulation logic and UI components
@@ -16,12 +24,13 @@
 
 ---
 
-## Current State — 2026-04-02
+## Current State — 2026-04-05
 
 **Phase 3 (Frontend Visualization) — COMPLETE**
-**Phase 1 & 2 (Backend Simulation Engine) — NOT STARTED**
+**Phase 1 (Simulation Backbone) — DESIGNED, NOT IMPLEMENTED**
+**Phase 2 (Oracle Loop) — DESIGNED (design note), NOT IMPLEMENTED**
 
-The visualization UI is fully built and running. The backend that would drive it with real simulation data does not exist yet. The UI currently runs on mock data (hardcoded scenario + timer-driven ticks).
+The visualization UI is fully built and running on mock data. Phase 1 backend has a complete design spec and implementation plan (10 tasks) ready to execute. No Python code written yet.
 
 ---
 
@@ -55,27 +64,28 @@ A production-grade React + Vite SPA converting the prototype into a testable, co
 
 ## What's NOT Built Yet
 
-### Phase 1 — Simulation backbone
-- Document/text ingestion (feed it a decision: "Fed raises rates 50bps")
-- GraphRAG entity + relationship extraction
-- OASIS agent generation from entities (real archetypes, not hardcoded)
-- Basic OASIS simulation run producing tick events
+### Phase 1 — Simulation backbone (spec + plan ready)
+Spec: `docs/superpowers/specs/2026-04-04-phase1-simulation-backbone-design.md`
+Plan: `docs/superpowers/plans/2026-04-04-phase1-simulation-backbone.md`
 
-### Phase 2 — Oracle loop
-- Cognee integration for skill self-improvement
-- Ground truth comparison + accuracy scoring
-- Temple of Learning amendment generation (real LLM rewrite, not typewriter mock)
-- Cross-simulation Research DAG
+Architecture: custom engine (no OASIS), Ollama for local LLM, structured JSON output.
+Pipeline: Scenario Analyzer → Agent Generator (two-pass) → Simulation Engine (tick loop) → Run JSON.
+Three demo scenarios: market sentiment, personal decision, policy stress-testing.
+10 implementation tasks, TDD, tasks 4-5-6 parallelizable.
 
-### Phase 3 extensions (not yet)
-- WebSocket/SSE protocol to stream live sim events to the UI
+### Phase 2 — Oracle loop (design note ready)
+Design note: `docs/superpowers/specs/2026-04-05-graph-memory-and-self-healing-design-note.md`
+
+- GraphRAG ingestion layer (Phase 1.5, upstream of Scenario Analyzer)
+- Graph agent memory via Zep (replaces flat AgentMemory.for_prompt())
+- Temple of Learning: evaluate → amend behavioral_rules → re-run loop
+- Cognee integration for skill amendment (or plain LLM calls for v1)
+
+### Phase 3+ extensions
+- WebSocket/SSE for live tick streaming to UI
 - God's Eye View variable injection mid-simulation
-- Multiple scenario support beyond `market-sentiment`
-
-### Infrastructure
-- Docker Compose setup
-- Pre-built demo scenarios
-- Zep Cloud agent memory integration
+- Cross-simulation Research DAG (Phase 5)
+- Docker Compose deployment
 
 ---
 
@@ -88,16 +98,24 @@ A production-grade React + Vite SPA converting the prototype into a testable, co
 | State management | `useReducer` pure function + `useSimulation` hook | No external store needed; reducer is easily testable; hook manages side effects |
 | Canvas particles | Canvas 2D + requestAnimationFrame | Simpler than Three.js for 2D dots; no dependency overhead |
 | Crowd state | Read from `stateRef` inside RAF loop | Avoids stale closure; crowdStateIndex updates propagate immediately |
+| Simulation framework | Custom engine, no OASIS/CAMEL-AI | OASIS is social-media focused; our opinion dynamics model is simpler and more flexible |
+| LLM provider | Ollama (local, free) | No API costs during development; swappable to Claude/OpenAI later |
+| Agent output format | Structured JSON (stance + action + reasoning + message) | Reliable with small models, maps cleanly to UI, machine-readable |
+| Agent memory | Full history, with `for_prompt()` abstraction seam | Fits in 8K context for 20 ticks; seam allows future compression/graph upgrade |
+| Input modes | CLI + FastAPI HTTP API | Both supported in Phase 1; UI gets input bar |
 
 ---
 
 ## Next Session Picks Up At
 
-**Start Phase 1:** Document ingestion → GraphRAG → agent generation → basic OASIS simulation run.
+**Execute Phase 1 implementation plan.** All design work is done.
 
-Key questions to resolve before building:
-1. Which OASIS version/fork to use? (CAMEL-AI's oasis repo)
-2. GraphRAG: Microsoft's GraphRAG, or lighter alternative?
-3. Input format for first demo: plain English description, or a news article?
+Plan: `docs/superpowers/plans/2026-04-04-phase1-simulation-backbone.md`
 
-Suggested first task: spike the OASIS integration — get a minimal simulation running in Python that produces tick events, even with hardcoded agents.
+Execution options:
+1. **Subagent-driven** (recommended) — dispatch fresh subagent per task, review between tasks
+2. **Inline execution** — batch execution with checkpoints
+
+Prerequisites before starting:
+- Install Ollama and pull a model: `brew install ollama && ollama pull llama3.1:8b`
+- Task 1 (project scaffolding) must complete first, then Tasks 2-3 sequentially, then Tasks 4-5-6 can parallelize
