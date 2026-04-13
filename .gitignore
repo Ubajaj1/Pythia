@@ -66,6 +66,9 @@ Thumbs.db
 htmlcov/
 .mypy_cache/
 
+# Git worktrees
+.worktrees/
+
 # Claude Code — local-only settings (personal permissions, hooks)
 .claude/settings.local.json
 
