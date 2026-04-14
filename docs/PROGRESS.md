@@ -6,6 +6,12 @@
 
 ## Session Log
 
+### 2026-04-13
+- Implemented Phase 1 (Simulation Backbone) — all 10 tasks, TDD, subagent-driven
+- 9 Python modules created: config, models, llm, analyzer, generator, engine, orchestrator, api, __main__
+- 47 Python tests passing, 18 UI tests still passing
+- Branch `feat/phase1-simulation-backbone` ready to merge
+
 ### 2026-04-05
 - Designed Phase 1 (Simulation Backbone) end-to-end through brainstorming session
 - Key decisions: custom engine (no OASIS/CAMEL-AI), local models via Ollama, structured JSON agent output, dual input (CLI + API)
@@ -24,13 +30,13 @@
 
 ---
 
-## Current State — 2026-04-05
+## Current State — 2026-04-13
 
 **Phase 3 (Frontend Visualization) — COMPLETE**
-**Phase 1 (Simulation Backbone) — DESIGNED, NOT IMPLEMENTED**
+**Phase 1 (Simulation Backbone) — COMPLETE** (47 Python tests + 18 UI tests passing)
 **Phase 2 (Oracle Loop) — DESIGNED (design note), NOT IMPLEMENTED**
 
-The visualization UI is fully built and running on mock data. Phase 1 backend has a complete design spec and implementation plan (10 tasks) ready to execute. No Python code written yet.
+The full Phase 1 backend is implemented and tested. The UI is connected to the API via the new InputBar. Live simulation requires Ollama running with a model pulled.
 
 ---
 
@@ -62,16 +68,35 @@ A production-grade React + Vite SPA converting the prototype into a testable, co
 
 ---
 
+## What's Been Built (Phase 1 — added 2026-04-13)
+
+### Python Backend (`src/pythia/`)
+- `config.py` — OLLAMA_BASE_URL, OLLAMA_MODEL, DEFAULT_TICK_COUNT, RUNS_DIR
+- `models.py` — All Pydantic models: AgentArchetype, ScenarioBlueprint, Agent, Relationship, TickAction, TickEvent, TickRecord, RunResult, RunSummary, SimulateRequest
+- `llm.py` — LLMClient Protocol + OllamaClient (async, JSON mode, 1-retry on malformed JSON)
+- `analyzer.py` — analyze_scenario(): prompt → ScenarioBlueprint via one LLM call
+- `generator.py` — generate_agents(): two-pass (parallel per archetype + relationship graph)
+- `engine.py` — SimulationEngine: tick loop, AgentMemory, parallel agent reasoning
+- `orchestrator.py` — run_simulation(): full pipeline + saves JSON to data/runs/
+- `__main__.py` — CLI: `python -m pythia "prompt"` and `python -m pythia serve`
+- `api.py` — FastAPI: POST /api/simulate, GET /api/runs, GET /api/runs/{run_id}
+
+### UI Updates (`src/ui/src/`)
+- `components/InputBar.jsx` — prompt + context inputs, POSTs to API
+- `simulation/scenarios.js` — added scenarioFromRunResult() adapter
+- `simulation/useSimulation.js` — added useApiSimulation() hook
+- `App.jsx` — rebuilt with InputBar, mock/API mode switching
+
+**Tests:** 47 Python tests + 18 UI tests, all passing
+
+**To run backend:**
+```bash
+cd /path/to/Pythia && source .venv/bin/activate
+python -m pythia "Fed raises rates 50bps"       # CLI
+python -m pythia serve                           # API server at :8000
+```
+
 ## What's NOT Built Yet
-
-### Phase 1 — Simulation backbone (spec + plan ready)
-Spec: `docs/superpowers/specs/2026-04-04-phase1-simulation-backbone-design.md`
-Plan: `docs/superpowers/plans/2026-04-04-phase1-simulation-backbone.md`
-
-Architecture: custom engine (no OASIS), Ollama for local LLM, structured JSON output.
-Pipeline: Scenario Analyzer → Agent Generator (two-pass) → Simulation Engine (tick loop) → Run JSON.
-Three demo scenarios: market sentiment, personal decision, policy stress-testing.
-10 implementation tasks, TDD, tasks 4-5-6 parallelizable.
 
 ### Phase 2 — Oracle loop (design note ready)
 Design note: `docs/superpowers/specs/2026-04-05-graph-memory-and-self-healing-design-note.md`
