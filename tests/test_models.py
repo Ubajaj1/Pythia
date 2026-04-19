@@ -14,6 +14,11 @@ from pythia.models import (
     RunSummary,
     SimulateRequest,
 )
+from pythia.models import (
+    AgentEvaluation, OracleRunRecord, OracleLoopResult, OracleRequest,
+    RunResult, RunSummary, ScenarioInfo, AgentInfo, BiggestShift,
+    TickRecord, TickEvent,
+)
 
 
 class TestAgentArchetype:
@@ -151,3 +156,65 @@ class TestSimulateRequest:
     def test_with_context(self):
         r = SimulateRequest(prompt="Buy or rent?", context="I have 50k saved")
         assert r.context == "I have 50k saved"
+
+
+class TestAgentEvaluation:
+    def test_coherent_evaluation(self):
+        e = AgentEvaluation(agent_id="a1", is_coherent=True, incoherence_summary=None)
+        assert e.agent_id == "a1"
+        assert e.is_coherent is True
+        assert e.incoherence_summary is None
+
+    def test_incoherent_evaluation_requires_summary(self):
+        e = AgentEvaluation(
+            agent_id="a1", is_coherent=False,
+            incoherence_summary="Agent said sell but stance increased",
+        )
+        assert e.is_coherent is False
+        assert e.incoherence_summary is not None
+
+
+class TestOracleRequest:
+    def test_defaults(self):
+        req = OracleRequest(prompt="Test")
+        assert req.max_runs == 5
+        assert req.context is None
+
+    def test_max_runs_validation(self):
+        import pytest
+        with pytest.raises(Exception):
+            OracleRequest(prompt="Test", max_runs=0)
+        with pytest.raises(Exception):
+            OracleRequest(prompt="Test", max_runs=11)
+
+
+class TestOracleLoopResult:
+    def _make_run_result(self):
+        return RunResult(
+            run_id="r1",
+            scenario=ScenarioInfo(input="t", type="m", title="T", stance_spectrum=["a","b","c","d","e"]),
+            agents=[AgentInfo(id="a1", name="A", role="r", persona="p", bias="b", initial_stance=0.5)],
+            ticks=[TickRecord(tick=1, events=[
+                TickEvent(agent_id="a1", stance=0.5, previous_stance=0.5, action="hold", emotion="calm", reasoning="ok", message="ok"),
+            ], aggregate_stance=0.5)],
+            summary=RunSummary(
+                total_ticks=1, final_aggregate_stance=0.5,
+                biggest_shift=BiggestShift(agent_id="a1", from_stance=0.5, to_stance=0.5, reason=""),
+                consensus_reached=True,
+            ),
+        )
+
+    def test_coherence_history_matches_runs_length(self):
+        run_record = OracleRunRecord(
+            run_number=1,
+            result=self._make_run_result(),
+            evaluations=[AgentEvaluation(agent_id="a1", is_coherent=True, incoherence_summary=None)],
+            coherence_score=1.0,
+            amended_agent_ids=[],
+        )
+        result = OracleLoopResult(
+            prompt="test",
+            runs=[run_record],
+            coherence_history=[1.0],
+        )
+        assert len(result.coherence_history) == len(result.runs)

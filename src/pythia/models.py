@@ -144,3 +144,31 @@ class RunResult(BaseModel):
 class SimulateRequest(BaseModel):
     prompt: str
     context: str | None = None
+
+
+# --- Oracle Loop ---
+
+class AgentEvaluation(BaseModel):
+    agent_id: str
+    is_coherent: bool
+    incoherence_summary: str | None = None
+
+
+class OracleRunRecord(BaseModel):
+    run_number: int
+    result: RunResult
+    evaluations: list[AgentEvaluation]
+    coherence_score: float
+    amended_agent_ids: list[str]
+
+
+class OracleLoopResult(BaseModel):
+    prompt: str
+    runs: list[OracleRunRecord]
+    coherence_history: list[float]
+
+
+class OracleRequest(BaseModel):
+    prompt: str
+    context: str | None = None
+    max_runs: int = Field(default=5, ge=1, le=10)
