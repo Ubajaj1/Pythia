@@ -13,11 +13,13 @@ from pythia.models import (
     RunResult,
     RunSummary,
     SimulateRequest,
-)
-from pythia.models import (
-    AgentEvaluation, OracleRunRecord, OracleLoopResult, OracleRequest,
-    RunResult, RunSummary, ScenarioInfo, AgentInfo, BiggestShift,
-    TickRecord, TickEvent,
+    AgentEvaluation,
+    OracleRunRecord,
+    OracleLoopResult,
+    OracleRequest,
+    ScenarioInfo,
+    AgentInfo,
+    BiggestShift,
 )
 
 
