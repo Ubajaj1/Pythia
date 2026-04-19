@@ -39,14 +39,14 @@ def _format_rules(rules: list[str]) -> str:
     return "\n".join(f"- {r}" for r in rules)
 
 
-def _format_history(tick_events: list[TickEvent]) -> str:
-    if not tick_events:
+def _format_history(tick_pairs: list[tuple[int, TickEvent]]) -> str:
+    if not tick_pairs:
         return "(no history)"
     lines = []
-    for i, e in enumerate(tick_events, 1):
+    for tick_num, e in tick_pairs:
         delta = e.stance - e.previous_stance
         lines.append(
-            f"Tick {i}: stance {e.previous_stance:.2f}→{e.stance:.2f} ({delta:+.2f}), "
+            f"Tick {tick_num}: stance {e.previous_stance:.2f}→{e.stance:.2f} ({delta:+.2f}), "
             f'action="{e.action}", reasoning="{e.reasoning}"'
         )
     return "\n".join(lines)
@@ -55,7 +55,7 @@ def _format_history(tick_events: list[TickEvent]) -> str:
 async def amend_agent(
     agent: Agent,
     evaluation: AgentEvaluation,
-    tick_events: list[TickEvent],
+    tick_pairs: list[tuple[int, TickEvent]],
     llm: LLMClient,
 ) -> Agent:
     """Return agent with behavioral_rules augmented by amendment. Returns original if coherent."""
@@ -68,7 +68,7 @@ async def amend_agent(
         bias=agent.bias,
         rules=_format_rules(agent.behavioral_rules),
         incoherence_summary=evaluation.incoherence_summary or "Reasoning did not explain action",
-        history=_format_history(tick_events),
+        history=_format_history(tick_pairs),
     )
     raw = await llm.generate(prompt=prompt, system=TEMPLE_SYSTEM)
     new_rules = [r for r in raw.get("new_rules", []) if isinstance(r, str)]

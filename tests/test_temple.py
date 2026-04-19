@@ -15,14 +15,14 @@ def make_agent():
     )
 
 
-def make_tick_events():
+def make_tick_pairs():
     return [
-        TickEvent(
+        (1, TickEvent(
             agent_id="agent-a", stance=0.85, previous_stance=0.3,
             action="buy aggressively", emotion="excited",
             reasoning="FOMO took over",
             message="All in.", influence_target=None,
-        )
+        ))
     ]
 
 
@@ -42,7 +42,7 @@ class TestAmendAgent:
         agent = make_agent()
         original_rule_count = len(agent.behavioral_rules)
 
-        amended = await amend_agent(agent, make_incoherent_eval(), make_tick_events(), llm)
+        amended = await amend_agent(agent, make_incoherent_eval(), make_tick_pairs(), llm)
 
         assert len(amended.behavioral_rules) > original_rule_count
 
@@ -50,7 +50,7 @@ class TestAmendAgent:
         llm = FakeLLMClient(responses=[{"new_rules": ["New rule"]}])
         agent = make_agent()
 
-        amended = await amend_agent(agent, make_incoherent_eval(), make_tick_events(), llm)
+        amended = await amend_agent(agent, make_incoherent_eval(), make_tick_pairs(), llm)
 
         assert "Sells on bad news" in amended.behavioral_rules
         assert "Avoids leverage" in amended.behavioral_rules
@@ -59,7 +59,7 @@ class TestAmendAgent:
         llm = FakeLLMClient(responses=[{"new_rules": ["New rule"]}])
         agent = make_agent()
 
-        amended = await amend_agent(agent, make_incoherent_eval(), make_tick_events(), llm)
+        amended = await amend_agent(agent, make_incoherent_eval(), make_tick_pairs(), llm)
 
         assert amended.behavioral_rules[-1] == "New rule"
 
@@ -67,7 +67,7 @@ class TestAmendAgent:
         llm = FakeLLMClient(responses=[{"new_rules": ["New rule"]}])
         agent = make_agent()
 
-        amended = await amend_agent(agent, make_incoherent_eval(), make_tick_events(), llm)
+        amended = await amend_agent(agent, make_incoherent_eval(), make_tick_pairs(), llm)
 
         assert amended.id == "agent-a"
         assert amended.name == "Agent A"
@@ -82,7 +82,7 @@ class TestAmendAgent:
             incoherence_summary="Unique summary text for assertion",
         )
 
-        await amend_agent(agent, evaluation, make_tick_events(), llm)
+        await amend_agent(agent, evaluation, make_tick_pairs(), llm)
 
         assert "Unique summary text for assertion" in llm.calls[0]["prompt"]
 
@@ -90,7 +90,7 @@ class TestAmendAgent:
         llm = FakeLLMClient(responses=[{"new_rules": ["New rule"]}])
         agent = make_agent()
 
-        await amend_agent(agent, make_incoherent_eval(), make_tick_events(), llm)
+        await amend_agent(agent, make_incoherent_eval(), make_tick_pairs(), llm)
 
         assert "Sells on bad news" in llm.calls[0]["prompt"]
         assert "Avoids leverage" in llm.calls[0]["prompt"]
@@ -102,7 +102,7 @@ class TestAmendAgent:
             agent_id="agent-a", is_coherent=True, incoherence_summary=None,
         )
 
-        amended = await amend_agent(agent, coherent_eval, make_tick_events(), llm)
+        amended = await amend_agent(agent, coherent_eval, make_tick_pairs(), llm)
 
         assert amended is agent
         assert len(llm.calls) == 0
@@ -111,7 +111,7 @@ class TestAmendAgent:
         llm = FakeLLMClient(responses=[{"new_rules": ["Valid rule", 42, None, "Another valid"]}])
         agent = make_agent()
 
-        amended = await amend_agent(agent, make_incoherent_eval(), make_tick_events(), llm)
+        amended = await amend_agent(agent, make_incoherent_eval(), make_tick_pairs(), llm)
 
         added = amended.behavioral_rules[len(agent.behavioral_rules):]
         assert added == ["Valid rule", "Another valid"]
@@ -120,6 +120,6 @@ class TestAmendAgent:
         llm = FakeLLMClient(responses=[{"new_rules": []}])
         agent = make_agent()
 
-        amended = await amend_agent(agent, make_incoherent_eval(), make_tick_events(), llm)
+        amended = await amend_agent(agent, make_incoherent_eval(), make_tick_pairs(), llm)
 
         assert amended.behavioral_rules == agent.behavioral_rules
