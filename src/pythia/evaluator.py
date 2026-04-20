@@ -56,7 +56,7 @@ def _format_history(tick_pairs: list[tuple[int, TickEvent]]) -> str:
     return "\n".join(lines)
 
 
-def _extract_agent_tick_pairs(
+def extract_agent_tick_pairs(
     run_result: RunResult, agent_id: str
 ) -> list[tuple[int, TickEvent]]:
     """Return [(tick_num, TickEvent)] for one agent across all ticks."""
@@ -98,7 +98,7 @@ async def evaluate_run(
     tasks = [
         evaluate_agent(
             agent,
-            _extract_agent_tick_pairs(run_result, agent.id),
+            extract_agent_tick_pairs(run_result, agent.id),
             llm,
         )
         for agent in agents

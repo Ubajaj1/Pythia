@@ -8,10 +8,11 @@ from pathlib import Path
 from pythia.analyzer import analyze_scenario
 from pythia.config import RUNS_DIR
 from pythia.engine import SimulationEngine
-from pythia.evaluator import evaluate_run
+from pythia.evaluator import evaluate_run, extract_agent_tick_pairs
 from pythia.generator import generate_agents
 from pythia.llm import LLMClient
 from pythia.models import (
+    Agent,
     AgentInfo,
     BiggestShift,
     OracleLoopResult,
@@ -20,7 +21,6 @@ from pythia.models import (
     RunSummary,
     ScenarioBlueprint,
     ScenarioInfo,
-    TickEvent,
     TickRecord,
 )
 from pythia.temple import amend_agent
@@ -30,7 +30,7 @@ def _build_run_result(
     run_num: int,
     prompt: str,
     blueprint: ScenarioBlueprint,
-    agents: list,
+    agents: list[Agent],
     ticks: list[TickRecord],
     runs_dir: str,
 ) -> RunResult:
@@ -98,18 +98,6 @@ def _build_run_result(
     return result
 
 
-def _extract_agent_tick_pairs(
-    run_result: RunResult, agent_id: str
-) -> list[tuple[int, TickEvent]]:
-    """Return [(tick_num, TickEvent)] for one agent across all ticks."""
-    pairs = []
-    for tick_record in run_result.ticks:
-        for event in tick_record.events:
-            if event.agent_id == agent_id:
-                pairs.append((tick_record.tick, event))
-    return pairs
-
-
 async def run_oracle_loop(
     prompt: str,
     llm: LLMClient,
@@ -152,7 +140,7 @@ async def run_oracle_loop(
             for agent in agents:
                 failing_eval = next((e for e in failing if e.agent_id == agent.id), None)
                 if failing_eval:
-                    tick_pairs = _extract_agent_tick_pairs(run_result, agent.id)
+                    tick_pairs = extract_agent_tick_pairs(run_result, agent.id)
                     amended = await amend_agent(agent, failing_eval, tick_pairs, llm)
                     amended_agents.append(amended)
                 else:
