@@ -51,6 +51,30 @@ async def _run(args: argparse.Namespace) -> None:
         await llm.close()
 
 
+async def _run_oracle(args: argparse.Namespace) -> None:
+    from pythia.llm import OllamaClient
+    from pythia.oracle_loop import run_oracle_loop
+
+    llm = OllamaClient(base_url=args.ollama_url, model=args.model)
+    try:
+        oracle_result = await run_oracle_loop(
+            prompt=args.prompt,
+            context=args.context,
+            max_runs=args.runs,
+            llm=llm,
+            runs_dir=args.runs_dir,
+        )
+        print(f"\n{'═' * 3} PYTHIA ORACLE — {oracle_result.runs[0].result.scenario.title} {'═' * 3}")
+        print(f"Ran {len(oracle_result.runs)} simulation(s)\n")
+        for record in oracle_result.runs:
+            score_pct = round(record.coherence_score * 100)
+            amended = ", ".join(record.amended_agent_ids) or "none"
+            print(f"  Run {record.run_number}: coherence {score_pct}%  |  amended: {amended}")
+        print(f"\nFinal coherence: {round(oracle_result.coherence_history[-1] * 100)}%")
+    finally:
+        await llm.close()
+
+
 def _serve(args: argparse.Namespace) -> None:
     import uvicorn
     from pythia.api import create_app
@@ -71,6 +95,12 @@ def main() -> None:
     serve_parser = subparsers.add_parser("serve", help="Start API server")
     serve_parser.add_argument("--port", type=int, default=8000, help="Server port")
 
+    # python -m pythia oracle "prompt"
+    oracle_parser = subparsers.add_parser("oracle", help="Run oracle loop (multi-run self-improving simulation)")
+    oracle_parser.add_argument("prompt", help="Decision or question to simulate")
+    oracle_parser.add_argument("--runs", type=int, default=5, help="Maximum number of simulation runs")
+    oracle_parser.add_argument("--context", default=None, help="Additional context paragraph")
+
     # python -m pythia "prompt" (positional, no subcommand needed)
     parser.add_argument("prompt", nargs="?", default=None, help="Decision or question to simulate")
     parser.add_argument("--context", default=None, help="Additional context paragraph")
@@ -79,6 +109,8 @@ def main() -> None:
 
     if args.command == "serve":
         _serve(args)
+    elif args.command == "oracle":
+        asyncio.run(_run_oracle(args))
     elif args.prompt:
         asyncio.run(_run(args))
     else:

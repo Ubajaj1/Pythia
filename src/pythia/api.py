@@ -10,7 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from pythia.config import OLLAMA_BASE_URL, OLLAMA_MODEL, RUNS_DIR
 from pythia.llm import OllamaClient
-from pythia.models import SimulateRequest
+from pythia.models import OracleRequest, SimulateRequest
+from pythia.oracle_loop import run_oracle_loop
 from pythia.orchestrator import run_simulation
 
 
@@ -39,6 +40,17 @@ def create_app(
             runs_dir=runs_dir,
         )
         return result.model_dump()
+
+    @app.post("/api/oracle")
+    async def oracle(request: OracleRequest) -> dict:
+        result = await run_oracle_loop(
+            prompt=request.prompt,
+            context=request.context,
+            max_runs=request.max_runs,
+            llm=llm,
+            runs_dir=runs_dir,
+        )
+        return result.model_dump(mode="json")
 
     @app.get("/api/runs")
     async def list_runs() -> list[dict]:

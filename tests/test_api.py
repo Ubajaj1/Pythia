@@ -8,6 +8,7 @@ from pythia.api import create_app
 from pythia.models import (
     RunResult, RunSummary, ScenarioInfo, AgentInfo,
     BiggestShift, TickRecord, TickEvent,
+    AgentEvaluation, OracleRunRecord, OracleLoopResult,
 )
 
 
@@ -90,3 +91,54 @@ class TestRunsEndpoints:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp = await client.get("/api/runs/nonexistent")
         assert resp.status_code == 404
+
+
+def make_mock_oracle_result() -> OracleLoopResult:
+    run_result = make_mock_result()
+    run_record = OracleRunRecord(
+        run_number=1,
+        result=run_result,
+        evaluations=[
+            AgentEvaluation(agent_id="a1", is_coherent=True, incoherence_summary=None),
+        ],
+        coherence_score=1.0,
+        amended_agent_ids=[],
+    )
+    return OracleLoopResult(
+        prompt="Test prompt",
+        runs=[run_record],
+        coherence_history=[1.0],
+    )
+
+
+class TestOracleEndpoint:
+    @pytest.fixture
+    def app(self):
+        return create_app(ollama_url="http://fake:11434", model="test")
+
+    async def test_oracle_returns_oracle_loop_result(self, app):
+        mock_result = make_mock_oracle_result()
+        with patch("pythia.api.run_oracle_loop", new_callable=AsyncMock, return_value=mock_result):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                resp = await client.post(
+                    "/api/oracle",
+                    json={"prompt": "Test prompt", "max_runs": 3},
+                )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["prompt"] == "Test prompt"
+        assert len(data["runs"]) == 1
+        assert data["coherence_history"] == [1.0]
+
+    async def test_oracle_requires_prompt(self, app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post("/api/oracle", json={})
+        assert resp.status_code == 422
+
+    async def test_oracle_max_runs_validated(self, app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post("/api/oracle", json={"prompt": "test", "max_runs": 0})
+        assert resp.status_code == 422
