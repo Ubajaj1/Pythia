@@ -39,7 +39,7 @@ def create_app(
             llm=llm,
             runs_dir=runs_dir,
         )
-        return result.model_dump()
+        return result.model_dump(mode="json")
 
     @app.post("/api/oracle")
     async def oracle(request: OracleRequest) -> dict:

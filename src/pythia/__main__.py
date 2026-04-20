@@ -64,6 +64,9 @@ async def _run_oracle(args: argparse.Namespace) -> None:
             llm=llm,
             runs_dir=args.runs_dir,
         )
+        if not oracle_result.runs:
+            print("Oracle loop returned no runs.")
+            return
         print(f"\n{'═' * 3} PYTHIA ORACLE — {oracle_result.runs[0].result.scenario.title} {'═' * 3}")
         print(f"Ran {len(oracle_result.runs)} simulation(s)\n")
         for record in oracle_result.runs:
