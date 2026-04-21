@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useSimulation, useApiSimulation } from './simulation/useSimulation'
-import { getScenario, scenarioFromRunResult } from './simulation/scenarios'
+import { useSimulation, useApiSimulation, useOracleSimulation } from './simulation/useSimulation'
+import { getScenario, scenarioFromRunResult, scenarioFromOracleResult } from './simulation/scenarios'
 import Header         from './components/Header'
 import Stage          from './components/Stage'
 import Arena          from './components/Arena'
@@ -61,14 +61,32 @@ function ApiSimulation({ runResult }) {
   return <SimulationView scenario={scenario} sim={sim} />
 }
 
+function OracleSimulation({ oracleResult }) {
+  const scenario = scenarioFromOracleResult(oracleResult)
+  const sim = useOracleSimulation(scenario)
+  return <SimulationView scenario={scenario} sim={sim} />
+}
+
 export default function App() {
   const [runResult, setRunResult] = useState(null)
+  const [oracleResult, setOracleResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
+
+  function handleSimulationResult(result) {
+    setOracleResult(null)
+    setRunResult(result)
+  }
+
+  function handleOracleResult(result) {
+    setRunResult(null)
+    setOracleResult(result)
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <InputBar
-        onSimulationResult={setRunResult}
+        onSimulationResult={handleSimulationResult}
+        onOracleResult={handleOracleResult}
         isLoading={isLoading}
         setIsLoading={setIsLoading}
       />
@@ -80,6 +98,8 @@ export default function App() {
         }}>
           The Oracle is deliberating...
         </div>
+      ) : oracleResult ? (
+        <OracleSimulation oracleResult={oracleResult} />
       ) : runResult ? (
         <ApiSimulation runResult={runResult} />
       ) : (

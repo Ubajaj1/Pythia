@@ -170,3 +170,11 @@ export function useApiSimulation(scenario) {
     restart,
   }
 }
+
+export function useOracleSimulation(oracleScenario) {
+  const sim = useApiSimulation(oracleScenario)
+  return {
+    ...sim,
+    accuracyHistory: oracleScenario.coherenceHistory,
+  }
+}

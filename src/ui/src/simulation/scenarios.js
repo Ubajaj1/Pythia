@@ -65,3 +65,31 @@ export function scenarioFromRunResult(result) {
     agents: result.agents,
   }
 }
+
+export function scenarioFromOracleResult(oracleResult) {
+  const firstRun = oracleResult.runs[0]
+  const amendedIds = new Set(firstRun.amended_agent_ids)
+
+  const protagonists = firstRun.result.agents.map((agent, i) => ({
+    id: agent.id,
+    name: agent.name,
+    trait: agent.bias,
+    color: AGENT_COLORS[i % AGENT_COLORS.length].color,
+    glow: AGENT_COLORS[i % AGENT_COLORS.length].glow,
+    amended: amendedIds.has(agent.id),
+  }))
+
+  const amendments = firstRun.result.agents.map(agent => [
+    amendedIds.has(agent.id) ? 'Amending' : 'Recalibrating',
+    `${agent.bias} rules...`,
+  ])
+
+  return {
+    name: firstRun.result.scenario.title,
+    protagonists,
+    amendments,
+    ticks: firstRun.result.ticks,
+    agents: firstRun.result.agents,
+    coherenceHistory: oracleResult.coherence_history.map(s => Math.round(s * 100)),
+  }
+}
