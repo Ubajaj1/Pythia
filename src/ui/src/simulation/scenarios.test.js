@@ -86,4 +86,8 @@ describe('scenarioFromOracleResult', () => {
     const scenario = scenarioFromOracleResult(mockOracleResult)
     expect(scenario.ticks).toBe(mockRunResult.ticks)
   })
+
+  it('throws when runs array is empty', () => {
+    expect(() => scenarioFromOracleResult({ prompt: 'test', coherence_history: [], runs: [] })).toThrow()
+  })
 })

@@ -67,6 +67,9 @@ export function scenarioFromRunResult(result) {
 }
 
 export function scenarioFromOracleResult(oracleResult) {
+  if (!oracleResult.runs?.length) {
+    throw new Error('Oracle result contains no runs')
+  }
   const firstRun = oracleResult.runs[0]
   const amendedIds = new Set(firstRun.amended_agent_ids)
 

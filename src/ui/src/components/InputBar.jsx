@@ -52,7 +52,7 @@ export default function InputBar({ onSimulationResult, onOracleResult, isLoading
   }
 
   return (
-    <form style={{
+    <form onSubmit={e => handleSubmit(e, 'simulate')} style={{
       padding: '12px 20px',
       borderBottom: '1px solid #1a1a17',
       display: 'flex',
