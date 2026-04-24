@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pythia — Architecture</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0D0D0B;
+    color: #d4c9a8;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 48px 32px;
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    color: #A88C52;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: #5a5a50;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    margin-bottom: 52px;
+  }
+
+  /* ── Layout ─────────────────────────────── */
+
+  .diagram {
+    display: flex;
+    gap: 32px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  /* Main pipeline column */
+  .pipeline {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  /* Side columns */
+  .side {
+    width: 190px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 8px;
+  }
+
+  /* ── Stage boxes ─────────────────────────── */
+
+  .stage {
+    width: 100%;
+    border: 1px solid #2a2a25;
+    border-radius: 4px;
+    padding: 16px 20px;
+    position: relative;
+  }
+
+  .stage .label {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: #A88C52;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  .stage .title {
+    font-size: 15px;
+    color: #e8dfc0;
+    margin-bottom: 4px;
+  }
+
+  .stage .cost {
+    font-size: 10px;
+    color: #5a5a50;
+    margin-bottom: 10px;
+  }
+
+  .stage ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .stage ul li {
+    padding: 2px 0;
+    color: #9a9080;
+    font-size: 12px;
+  }
+
+  .stage ul li::before {
+    content: "·  ";
+    color: #A88C52;
+  }
+
+  .stage .out {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #1e1e1a;
+    font-size: 11px;
+    color: #6a6a58;
+  }
+
+  .stage .out span {
+    color: #A88C52;
+  }
+
+  /* Input row */
+  .input-row {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    margin-bottom: 0;
+  }
+
+  .input-box {
+    flex: 1;
+    border: 1px solid #2a2a25;
+    border-radius: 4px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+
+  .input-box .label {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: #A88C52;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .input-box .mono {
+    font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+    font-size: 10px;
+    color: #7a7060;
+  }
+
+  /* Oracle loop bracket */
+  .oracle-bracket {
+    width: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .oracle-label {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 6px 0 4px;
+  }
+
+  .oracle-label .text {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: #7a6840;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .oracle-label .line {
+    flex: 1;
+    height: 1px;
+    background: #2a2a1e;
+  }
+
+  .oracle-inner {
+    width: 100%;
+    border: 1px solid #2a2a1e;
+    border-radius: 4px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    background: #0f0f0d;
+  }
+
+  /* Arrows */
+  .arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 4px 0;
+    color: #3a3a32;
+    font-size: 18px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .arrow.labeled {
+    position: relative;
+  }
+
+  .arrow .arrow-note {
+    font-size: 9px;
+    color: #4a4a40;
+    letter-spacing: 0.06em;
+    margin-bottom: 2px;
+  }
+
+  /* Side panels */
+  .side-box {
+    border: 1px solid #222220;
+    border-radius: 4px;
+    padding: 14px;
+    background: #0a0a09;
+  }
+
+  .side-box .label {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: #6a6a58;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .side-box ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .side-box ul li {
+    font-size: 11px;
+    color: #6a6058;
+    padding: 2px 0;
+  }
+
+  .side-box ul li::before {
+    content: "→ ";
+    color: #4a4a38;
+  }
+
+  .side-box .provider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid #1a1a18;
+    font-size: 11px;
+  }
+
+  .side-box .provider:last-child { border-bottom: none; }
+
+  .side-box .provider .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot-green  { background: #5a8a5a; }
+  .dot-blue   { background: #5a7a9a; }
+  .dot-purple { background: #7a5a9a; }
+
+  .side-box .provider .name { color: #9a9080; }
+  .side-box .provider .model { color: #5a5a50; font-size: 10px; }
+
+  .side-box .log-level {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 11px;
+    border-bottom: 1px solid #1a1a18;
+  }
+  .side-box .log-level:last-child { border-bottom: none; }
+  .side-box .log-level .lvl { color: #9a9080; }
+  .side-box .log-level .dest { color: #5a5a50; }
+
+  /* Decision table at bottom */
+  .decisions {
+    max-width: 1100px;
+    margin: 52px auto 0;
+  }
+
+  .decisions h2 {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #A88C52;
+    margin-bottom: 20px;
+    font-weight: 400;
+  }
+
+  .decision-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .decision {
+    border: 1px solid #1e1e1a;
+    border-radius: 4px;
+    padding: 14px 16px;
+  }
+
+  .decision .q {
+    color: #c8bfa0;
+    font-size: 12px;
+    margin-bottom: 5px;
+  }
+
+  .decision .a {
+    color: #6a6058;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .decision .a em {
+    color: #A88C52;
+    font-style: normal;
+  }
+</style>
+</head>
+<body>
+
+<h1>PYTHIA  ◈  ARCHITECTURE</h1>
+<p class="subtitle">Open this file in any browser · Double-click architecture.html</p>
+
+<div class="diagram">
+
+  <!-- ── LEFT SIDE: LLM Providers ─────── -->
+  <div class="side">
+    <div class="side-box">
+      <div class="label">LLM Providers</div>
+      <div class="provider">
+        <div class="dot dot-green"></div>
+        <div>
+          <div class="name">Ollama</div>
+          <div class="model">llama3.1:8b · local</div>
+        </div>
+      </div>
+      <div class="provider">
+        <div class="dot dot-blue"></div>
+        <div>
+          <div class="name">OpenAI</div>
+          <div class="model">gpt-4o-mini · default</div>
+        </div>
+      </div>
+      <div class="provider">
+        <div class="dot dot-purple"></div>
+        <div>
+          <div class="name">Anthropic</div>
+          <div class="model">claude-haiku · default</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-box" style="margin-top:4px">
+      <div class="label">Auto-detect</div>
+      <ul>
+        <li>ANTHROPIC_API_KEY</li>
+        <li>OPENAI_API_KEY</li>
+        <li>else → Ollama</li>
+      </ul>
+    </div>
+
+    <div class="side-box" style="margin-top:4px">
+      <div class="label">All providers use</div>
+      <ul>
+        <li>LLMClient Protocol</li>
+        <li>generate(prompt, system)</li>
+        <li>returns dict (JSON)</li>
+        <li>swap without changing pipeline</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ── CENTRE: Pipeline ──────────────── -->
+  <div class="pipeline">
+
+    <!-- Input -->
+    <div class="input-row">
+      <div class="input-box">
+        <div class="label">CLI</div>
+        <div class="mono">python -m pythia "…"</div>
+      </div>
+      <div class="input-box">
+        <div class="label">API</div>
+        <div class="mono">POST /api/simulate<br>POST /api/oracle</div>
+      </div>
+      <div class="input-box">
+        <div class="label">UI</div>
+        <div class="mono">InputBar.jsx<br>React + Vite</div>
+      </div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- Analyze -->
+    <div class="stage">
+      <div class="label">Step 1 — Analyze &nbsp;·&nbsp; 1 LLM call</div>
+      <div class="title">Scenario Analyzer</div>
+      <ul>
+        <li>Reads plain English prompt</li>
+        <li>Extracts scenario type, title, description</li>
+        <li>Defines 5-point stance spectrum</li>
+        <li>Creates 3–5 agent archetypes (role, bias, stance range, count)</li>
+      </ul>
+      <div class="out">Output → <span>ScenarioBlueprint</span></div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- Generate -->
+    <div class="stage">
+      <div class="label">Step 2 — Generate &nbsp;·&nbsp; parallel LLM calls</div>
+      <div class="title">Agent Generator</div>
+      <ul>
+        <li><strong style="color:#c8bfa0">Pass 1</strong> — one LLM call per archetype, in parallel</li>
+        <li>Each agent gets: name, persona, bias, initial_stance, behavioral_rules[]</li>
+        <li><strong style="color:#c8bfa0">Pass 2</strong> — one LLM call for the full cast</li>
+        <li>Builds relationship graph: who follows / distrusts / respects whom</li>
+        <li>Diversity check: regenerates if all stances cluster too tightly</li>
+      </ul>
+      <div class="out">Output → <span>list[Agent]</span> with relationships</div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- Simulate -->
+    <div class="stage">
+      <div class="label">Step 3 — Simulate &nbsp;·&nbsp; N agents × T ticks LLM calls</div>
+      <div class="title">Simulation Engine</div>
+      <ul>
+        <li>Each tick: all agents reason in parallel (no turn-order bias)</li>
+        <li>Each agent sees: own memory + neighbors' messages + aggregate stance</li>
+        <li>Each agent outputs: stance · action · emotion · reasoning · message</li>
+        <li>AgentMemory stores full history — for_prompt() is the only access point</li>
+      </ul>
+      <div class="out">Output → <span>list[TickRecord]</span> → saved as RunResult JSON</div>
+    </div>
+
+    <!-- Oracle Loop bracket -->
+    <div class="oracle-bracket">
+      <div class="oracle-label">
+        <div class="line"></div>
+        <div class="text">Oracle Loop only — repeats until all coherent or max runs reached</div>
+        <div class="line"></div>
+      </div>
+
+      <div class="oracle-inner">
+
+        <div class="arrow">↓</div>
+
+        <div class="stage" style="background:#0a0a08">
+          <div class="label">Step 4 — Evaluate &nbsp;·&nbsp; 1 LLM call per agent</div>
+          <div class="title">Evaluator</div>
+          <ul>
+            <li>Grades each agent's reasoning coherence</li>
+            <li>Not archetype conformity — coherence: does action match stated reason?</li>
+            <li>No ground truth needed</li>
+          </ul>
+          <div class="out">Output → <span>AgentEvaluation</span> per agent (is_coherent, summary)</div>
+        </div>
+
+        <div class="arrow labeled">
+          <div class="arrow-note">failing agents only</div>
+          <div>↓</div>
+        </div>
+
+        <div class="stage" style="background:#0a0a08">
+          <div class="label">Step 5 — Amend &nbsp;·&nbsp; 1 LLM call per failing agent</div>
+          <div class="title">Temple of Learning</div>
+          <ul>
+            <li>Adds 1–3 new rules to agent's behavioral_rules[]</li>
+            <li>Additive only — existing rules are never removed</li>
+            <li>Agents accumulate nuance across runs, never regress</li>
+          </ul>
+          <div class="out">Output → <span>Agent</span> with expanded behavioral_rules[]</div>
+        </div>
+
+        <div class="arrow labeled">
+          <div class="arrow-note">amended agents re-enter Step 3</div>
+          <div>↑</div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- Frontend -->
+    <div class="stage">
+      <div class="label">Frontend &nbsp;·&nbsp; React + Vite</div>
+      <div class="title">Three Render Modes</div>
+      <ul>
+        <li><strong style="color:#c8bfa0">Mock</strong> — 3 static scenarios, no API needed (Market Sentiment / Content Strategy / Product Launch)</li>
+        <li><strong style="color:#c8bfa0">Simulate</strong> — replays RunResult from /api/simulate tick by tick</li>
+        <li><strong style="color:#c8bfa0">Oracle</strong> — replays OracleLoopResult, shows real coherence curve</li>
+      </ul>
+      <div class="out">Components → <span>Stage</span> (agents) · <span>Arena</span> (crowd) · <span>Temple</span> · <span>AccuracyCurve</span></div>
+    </div>
+
+  </div>
+
+  <!-- ── RIGHT SIDE: Observability ─────── -->
+  <div class="side">
+    <div class="side-box">
+      <div class="label">Logging</div>
+      <div class="log-level">
+        <div class="lvl">Console</div>
+        <div class="dest">INFO+</div>
+      </div>
+      <div class="log-level">
+        <div class="lvl">data/logs/</div>
+        <div class="dest">DEBUG+</div>
+      </div>
+      <div style="margin-top:10px; font-size:11px; color:#5a5a50; line-height:1.5">
+        Console shows event digest.<br>
+        Log file has full LLM prompts, raw responses, latency per call.
+      </div>
+    </div>
+
+    <div class="side-box" style="margin-top:4px">
+      <div class="label">Logged at every step</div>
+      <ul>
+        <li>Prompt sent to LLM</li>
+        <li>Raw LLM response</li>
+        <li>Latency per call (ms)</li>
+        <li>Stance delta per agent</li>
+        <li>Coherence result</li>
+        <li>Rules added by Temple</li>
+        <li>HTTP request + latency</li>
+      </ul>
+    </div>
+
+    <div class="side-box" style="margin-top:4px">
+      <div class="label">CLI flags</div>
+      <ul>
+        <li>--log-level DEBUG</li>
+        <li>--log-dir path/</li>
+        <li>--provider ollama</li>
+        <li>--model name</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Decision Log ──────────────────────────── -->
+<div class="decisions">
+  <h2>Key Decisions</h2>
+  <div class="decision-grid">
+
+    <div class="decision">
+      <div class="q">Why a custom engine instead of OASIS / CAMEL-AI?</div>
+      <div class="a">OASIS is built for social-media simulation. Pythia needs <em>opinion dynamics</em> — different model. Building custom gave full control over prompts, memory, and evaluation with no framework overhead.</div>
+    </div>
+
+    <div class="decision">
+      <div class="q">Why coherence instead of prediction accuracy?</div>
+      <div class="a">Prediction accuracy requires ground truth — real-world outcomes to compare against. <em>Coherence</em> (does the agent's reasoning explain its action?) is measurable immediately with one LLM call. No ground truth needed.</div>
+    </div>
+
+    <div class="decision">
+      <div class="q">Why are behavioral_rules[] additive — never removed?</div>
+      <div class="a">Removing rules makes agents drift toward generic behavior. Addition accumulates <em>context-sensitive nuance</em> run over run. Agents become richer, not blander.</div>
+    </div>
+
+    <div class="decision">
+      <div class="q">Why analyze + generate only once in the Oracle Loop?</div>
+      <div class="a">Agents carry their <em>learned rules forward</em>. Re-analyzing or re-generating would discard everything the amendment step produced. The loop re-uses the same agents across runs.</div>
+    </div>
+
+    <div class="decision">
+      <div class="q">Why parallel LLM calls per tick?</div>
+      <div class="a">Sequential calls would introduce <em>turn-order bias</em> — earlier agents influence later ones within the same tick. Parallel calls mean all agents reason from the same world state.</div>
+    </div>
+
+    <div class="decision">
+      <div class="q">Why an LLMClient Protocol instead of a base class?</div>
+      <div class="a">Python structural typing — <em>any object</em> with generate(prompt, system) → dict works. No inheritance required. Swap Ollama for Claude by changing one constructor call. The pipeline code never changes.</div>
+    </div>
+
+    <div class="decision">
+      <div class="q">Why 5 named agents + 290 crowd particles, not 1000 agents?</div>
+      <div class="a">1000 named agents can't be individually rendered or reasoned about per tick. <em>Protagonists</em> are the characters you follow; the <em>crowd field</em> represents the mass through physics-based particle dynamics.</div>
+    </div>
+
+    <div class="decision">
+      <div class="q">Why static mock scenarios in the frontend?</div>
+      <div class="a">Works without Ollama, API keys, or any backend running. Needed for <em>gif recording</em>, first-load UX, and demos on machines with no GPU. The real API overlays on top when available.</div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
