@@ -10,11 +10,11 @@ export const SCENARIOS = {
   'market-sentiment': {
     name: 'Market Sentiment — Fed Rate Decision',
     protagonists: [
-      { id: 'rachel', name: 'Retail Rachel',   trait: 'Loss Aversion',      color: '#B8907A', glow: 'rgba(184,144,122,0.32)' },
-      { id: 'ivan',   name: 'Instit. Ivan',    trait: 'Anchoring Bias',      color: '#7A9BA8', glow: 'rgba(122,155,168,0.32)' },
-      { id: 'elias',  name: 'Adopter Elias',   trait: 'FOMO Drive',          color: '#A09B7A', glow: 'rgba(160,155,122,0.32)' },
-      { id: 'pete',   name: 'Panic Pete',      trait: 'Reactance Theory',    color: '#C08878', glow: 'rgba(192,136,120,0.32)' },
-      { id: 'clara',  name: 'Clara C.',        trait: 'Social Reactance',    color: '#8A9B8A', glow: 'rgba(138,155,138,0.32)' },
+      { id: 'rachel', name: 'Retail Rachel',   trait: 'Loss Aversion',    color: '#B8907A', glow: 'rgba(184,144,122,0.32)' },
+      { id: 'ivan',   name: 'Instit. Ivan',    trait: 'Anchoring Bias',   color: '#7A9BA8', glow: 'rgba(122,155,168,0.32)' },
+      { id: 'elias',  name: 'Adopter Elias',   trait: 'FOMO Drive',       color: '#A09B7A', glow: 'rgba(160,155,122,0.32)' },
+      { id: 'pete',   name: 'Panic Pete',      trait: 'Reactance Theory', color: '#C08878', glow: 'rgba(192,136,120,0.32)' },
+      { id: 'clara',  name: 'Clara C.',        trait: 'Social Reactance', color: '#8A9B8A', glow: 'rgba(138,155,138,0.32)' },
     ],
     amendments: [
       ['Recalibrating', 'loss threshold...'],
@@ -22,6 +22,42 @@ export const SCENARIOS = {
       ['Adjusting FOMO', 'sensitivity...'],
       ['Retuning panic', 'trigger curve...'],
       ['Amending social', 'reactance bias...'],
+    ],
+  },
+
+  'content-strategy': {
+    name: 'Content Strategy — Viral Campaign Launch',
+    protagonists: [
+      { id: 'casey',  name: 'Creator Casey', trait: 'Trend Chasing',    color: '#B8907A', glow: 'rgba(184,144,122,0.32)' },
+      { id: 'barry',  name: 'Brand Barry',   trait: 'Risk Aversion',    color: '#7A9BA8', glow: 'rgba(122,155,168,0.32)' },
+      { id: 'donna',  name: 'Data Donna',    trait: 'Anchoring Bias',   color: '#A09B7A', glow: 'rgba(160,155,122,0.32)' },
+      { id: 'victor', name: 'Viral Victor',  trait: 'Social Proof',     color: '#C08878', glow: 'rgba(192,136,120,0.32)' },
+      { id: 'emma',   name: 'Ethics Emma',   trait: 'Reactance Theory', color: '#8A9B8A', glow: 'rgba(138,155,138,0.32)' },
+    ],
+    amendments: [
+      ['Recalibrating', 'trend thresholds...'],
+      ['Reweighting',   'brand risk model...'],
+      ['Reanchoring',   'engagement metrics...'],
+      ['Retuning',      'virality triggers...'],
+      ['Amending',      'ethical guardrails...'],
+    ],
+  },
+
+  'product-launch': {
+    name: 'Product Launch — Early Adopter Dynamics',
+    protagonists: [
+      { id: 'alex',  name: 'Adopter Alex',  trait: 'FOMO Drive',       color: '#B8907A', glow: 'rgba(184,144,122,0.32)' },
+      { id: 'sam',   name: 'Skeptic Sam',   trait: 'Loss Aversion',    color: '#7A9BA8', glow: 'rgba(122,155,168,0.32)' },
+      { id: 'iris',  name: 'Investor Iris', trait: 'Anchoring Bias',   color: '#A09B7A', glow: 'rgba(160,155,122,0.32)' },
+      { id: 'paula', name: 'Press Paula',   trait: 'Social Proof',     color: '#C08878', glow: 'rgba(192,136,120,0.32)' },
+      { id: 'erik',  name: 'Engineer Erik', trait: 'Reactance Theory', color: '#8A9B8A', glow: 'rgba(138,155,138,0.32)' },
+    ],
+    amendments: [
+      ['Adjusting',     'FOMO sensitivity...'],
+      ['Recalibrating', 'loss threshold...'],
+      ['Reanchoring',   'price signals...'],
+      ['Retuning',      'coverage triggers...'],
+      ['Amending',      'technical bias...'],
     ],
   },
 }

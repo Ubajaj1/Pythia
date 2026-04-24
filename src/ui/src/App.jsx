@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSimulation, useApiSimulation, useOracleSimulation } from './simulation/useSimulation'
-import { getScenario, scenarioFromRunResult, scenarioFromOracleResult } from './simulation/scenarios'
+import { SCENARIOS, getScenario, scenarioFromRunResult, scenarioFromOracleResult } from './simulation/scenarios'
 import Header         from './components/Header'
 import Stage          from './components/Stage'
 import Arena          from './components/Arena'
@@ -49,8 +49,8 @@ function SimulationView({ scenario, sim }) {
   )
 }
 
-function MockSimulation() {
-  const scenario = getScenario(DEFAULT_SCENARIO_ID)
+function MockSimulation({ scenarioId }) {
+  const scenario = getScenario(scenarioId)
   const sim = useSimulation(scenario.protagonists, scenario.amendments)
   return <SimulationView scenario={scenario} sim={sim} />
 }
@@ -71,6 +71,9 @@ export default function App() {
   const [runResult, setRunResult] = useState(null)
   const [oracleResult, setOracleResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedScenarioId, setSelectedScenarioId] = useState(DEFAULT_SCENARIO_ID)
+
+  const isMockMode = !runResult && !oracleResult && !isLoading
 
   function handleSimulationResult(result) {
     setOracleResult(null)
@@ -90,6 +93,35 @@ export default function App() {
         isLoading={isLoading}
         setIsLoading={setIsLoading}
       />
+      {isMockMode && (
+        <div style={{
+          display: 'flex', gap: '8px', padding: '7px 20px',
+          borderBottom: '1px solid #1a1a17', background: '#0D0D0B',
+        }}>
+          {Object.entries(SCENARIOS).map(([id, s]) => {
+            const active = id === selectedScenarioId
+            return (
+              <button
+                key={id}
+                onClick={() => setSelectedScenarioId(id)}
+                style={{
+                  background: 'transparent',
+                  border: `1px solid ${active ? '#A88C52' : '#2a2a25'}`,
+                  color: active ? '#A88C52' : '#4a4a44',
+                  borderRadius: '3px',
+                  padding: '3px 12px',
+                  fontFamily: 'Syne, sans-serif',
+                  fontSize: '11px',
+                  letterSpacing: '0.04em',
+                  cursor: 'pointer',
+                }}
+              >
+                {s.name.split(' — ')[0]}
+              </button>
+            )
+          })}
+        </div>
+      )}
       {isLoading ? (
         <div style={{
           flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -103,7 +135,7 @@ export default function App() {
       ) : runResult ? (
         <ApiSimulation runResult={runResult} />
       ) : (
-        <MockSimulation />
+        <MockSimulation scenarioId={selectedScenarioId} />
       )}
     </div>
   )
