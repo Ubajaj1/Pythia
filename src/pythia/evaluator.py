@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from pythia.llm import LLMClient
 from pythia.models import Agent, AgentEvaluation, RunResult, TickEvent
+
+logger = logging.getLogger(__name__)
 
 
 EVAL_SYSTEM = """\
@@ -74,6 +77,8 @@ async def evaluate_agent(
     llm: LLMClient,
 ) -> AgentEvaluation:
     """Evaluate one agent's reasoning coherence. One LLM call."""
+    logger.info("Evaluating agent agent=%s ticks=%d", agent.name, len(tick_pairs))
+
     prompt = EVAL_PROMPT.format(
         name=agent.name,
         role=agent.role,
@@ -81,12 +86,23 @@ async def evaluate_agent(
         rules=_format_rules(agent.behavioral_rules),
         history=_format_history(tick_pairs),
     )
+    logger.debug("Eval prompt agent=%s:\n%s", agent.name, prompt)
+
     raw = await llm.generate(prompt=prompt, system=EVAL_SYSTEM)
-    return AgentEvaluation(
+    result = AgentEvaluation(
         agent_id=agent.id,
         is_coherent=bool(raw.get("is_coherent", True)),
         incoherence_summary=raw.get("incoherence_summary"),
     )
+
+    if result.is_coherent:
+        logger.info("Coherence check agent=%s result=coherent", agent.name)
+    else:
+        logger.info(
+            "Coherence check agent=%s result=INCOHERENT summary=%r",
+            agent.name, result.incoherence_summary,
+        )
+    return result
 
 
 async def evaluate_run(
@@ -95,6 +111,8 @@ async def evaluate_run(
     llm: LLMClient,
 ) -> list[AgentEvaluation]:
     """Evaluate all agents in parallel. Returns one AgentEvaluation per agent."""
+    logger.info("Evaluating run run_id=%s agents=%d", run_result.run_id, len(agents))
+
     tasks = [
         evaluate_agent(
             agent,
@@ -103,4 +121,11 @@ async def evaluate_run(
         )
         for agent in agents
     ]
-    return list(await asyncio.gather(*tasks))
+    evals = list(await asyncio.gather(*tasks))
+
+    n_coherent = sum(1 for e in evals if e.is_coherent)
+    logger.info(
+        "Evaluation complete run_id=%s coherent=%d/%d",
+        run_result.run_id, n_coherent, len(agents),
+    )
+    return evals

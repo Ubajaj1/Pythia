@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+
 from pythia.llm import LLMClient
 from pythia.models import ScenarioBlueprint
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
 You are Pythia's Scenario Analyzer. Given a user's decision or question, you produce a simulation blueprint as JSON.
@@ -31,9 +35,24 @@ async def analyze_scenario(
     context: str | None = None,
 ) -> ScenarioBlueprint:
     """Analyze a user prompt and return a simulation blueprint."""
+    logger.info("Analyzing scenario prompt=%r", prompt[:80] + ("..." if len(prompt) > 80 else ""))
+    if context:
+        logger.info("Context provided context_chars=%d", len(context))
+
     user_prompt = f"User's decision/question: {prompt}"
     if context:
         user_prompt += f"\n\nAdditional context: {context}"
 
+    logger.debug("Analyzer full prompt:\n%s", user_prompt)
+
     raw = await llm.generate(prompt=user_prompt, system=SYSTEM_PROMPT)
-    return ScenarioBlueprint.model_validate(raw)
+    blueprint = ScenarioBlueprint.model_validate(raw)
+
+    archetype_summary = ", ".join(
+        f"{a.role}×{a.count}" for a in blueprint.agent_archetypes
+    )
+    logger.info(
+        "Blueprint ready type=%s title=%r archetypes=[%s] ticks=%d",
+        blueprint.scenario_type, blueprint.title, archetype_summary, blueprint.tick_count,
+    )
+    return blueprint

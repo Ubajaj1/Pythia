@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+
 from pythia.llm import LLMClient
 from pythia.models import Agent, AgentEvaluation, TickEvent
+
+logger = logging.getLogger(__name__)
 
 
 TEMPLE_SYSTEM = """\
@@ -62,6 +66,11 @@ async def amend_agent(
     if evaluation.is_coherent:
         return agent
 
+    logger.info(
+        "Temple: amending agent=%s incoherence=%r",
+        agent.name, evaluation.incoherence_summary,
+    )
+
     prompt = TEMPLE_PROMPT.format(
         name=agent.name,
         role=agent.role,
@@ -70,8 +79,15 @@ async def amend_agent(
         incoherence_summary=evaluation.incoherence_summary or "Reasoning did not explain action",
         history=_format_history(tick_pairs),
     )
+    logger.debug("Temple prompt agent=%s:\n%s", agent.name, prompt)
+
     raw = await llm.generate(prompt=prompt, system=TEMPLE_SYSTEM)
     new_rules = [r for r in raw.get("new_rules", []) if isinstance(r, str)]
+
+    logger.info(
+        "Temple: amendment complete agent=%s new_rules=%d rules=%s",
+        agent.name, len(new_rules), new_rules,
+    )
 
     return agent.model_copy(update={
         "behavioral_rules": agent.behavioral_rules + new_rules,

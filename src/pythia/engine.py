@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 
 from pythia.llm import LLMClient
 from pythia.models import (
@@ -13,6 +14,8 @@ from pythia.models import (
     TickEvent,
     TickRecord,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class AgentMemory:
@@ -130,17 +133,35 @@ class SimulationEngine:
 
     async def run(self) -> list[TickRecord]:
         """Run the full simulation and return all tick records."""
-        tick_records: list[TickRecord] = []
+        logger.info(
+            "Simulation started scenario=%r agents=%d ticks=%d",
+            self.blueprint.title, len(self.agents), self.blueprint.tick_count,
+        )
+        agent_summary = ", ".join(
+            f"{a.name}({a.initial_stance:.2f})" for a in self.agents
+        )
+        logger.debug("Agents: %s", agent_summary)
 
+        tick_records: list[TickRecord] = []
         for tick_num in range(1, self.blueprint.tick_count + 1):
             tick_record = await self._run_tick(tick_num)
             tick_records.append(tick_record)
 
+        final_agg = tick_records[-1].aggregate_stance if tick_records else 0.0
+        logger.info(
+            "Simulation complete scenario=%r ticks_run=%d final_aggregate=%.3f",
+            self.blueprint.title, len(tick_records), final_agg,
+        )
         return tick_records
 
     async def _run_tick(self, tick_num: int) -> TickRecord:
         """Run a single tick: all agents reason in parallel."""
         aggregate = self._compute_aggregate()
+        logger.info(
+            "Tick %d/%d aggregate_stance=%.3f (%s)",
+            tick_num, self.blueprint.tick_count, aggregate,
+            _stance_to_label(aggregate, self.blueprint.stance_spectrum),
+        )
 
         tasks = [
             self._run_agent_tick(agent, tick_num, aggregate)
@@ -148,7 +169,6 @@ class SimulationEngine:
         ]
         events = await asyncio.gather(*tasks)
 
-        # Update world state
         new_messages: list[dict] = []
         for event in events:
             self.current_stances[event.agent_id] = {
@@ -206,8 +226,24 @@ class SimulationEngine:
             history=_format_history(self.memories[agent.id]),
         )
 
+        logger.debug(
+            "Agent tick prompt agent=%s tick=%d\n--- SYSTEM ---\n%s\n--- PROMPT ---\n%s",
+            agent.name, tick_num, system, prompt,
+        )
+
         raw = await self.llm.generate(prompt=prompt, system=system)
         action = TickAction.model_validate(raw)
+
+        delta = action.stance - previous_stance
+        logger.info(
+            "Agent tick agent=%-20s tick=%d stance=%.2f→%.2f(%+.2f) action=%r emotion=%r",
+            agent.name, tick_num, previous_stance, action.stance, delta,
+            action.action, action.emotion,
+        )
+        logger.debug(
+            "Agent reasoning agent=%s tick=%d reasoning=%r message=%r target=%s",
+            agent.name, tick_num, action.reasoning, action.message, action.influence_target,
+        )
 
         return TickEvent(
             agent_id=agent.id,

@@ -6,7 +6,7 @@ import argparse
 import asyncio
 import sys
 
-from pythia.config import OLLAMA_BASE_URL, OLLAMA_MODEL, RUNS_DIR
+from pythia.config import LOG_DIR, LOG_LEVEL, OLLAMA_BASE_URL, OLLAMA_MODEL, RUNS_DIR
 
 
 def _print_summary(result) -> None:
@@ -15,7 +15,6 @@ def _print_summary(result) -> None:
     print(f"\n{'═' * 3} PYTHIA — {s.title} {'═' * 3}\n")
     print("Agents:")
     for agent in result.agents:
-        # Find final stance from last tick
         final_stance = agent.initial_stance
         for tick in result.ticks:
             for event in tick.events:
@@ -35,10 +34,10 @@ def _print_summary(result) -> None:
 
 
 async def _run(args: argparse.Namespace) -> None:
-    from pythia.llm import OllamaClient
+    from pythia.llm import build_llm_client
     from pythia.orchestrator import run_simulation
 
-    llm = OllamaClient(base_url=args.ollama_url, model=args.model)
+    llm = build_llm_client(provider=args.provider, ollama_url=args.ollama_url, model=args.model)
     try:
         result = await run_simulation(
             prompt=args.prompt,
@@ -52,10 +51,10 @@ async def _run(args: argparse.Namespace) -> None:
 
 
 async def _run_oracle(args: argparse.Namespace) -> None:
-    from pythia.llm import OllamaClient
+    from pythia.llm import build_llm_client
     from pythia.oracle_loop import run_oracle_loop
 
-    llm = OllamaClient(base_url=args.ollama_url, model=args.model)
+    llm = build_llm_client(provider=args.provider, ollama_url=args.ollama_url, model=args.model)
     try:
         oracle_result = await run_oracle_loop(
             prompt=args.prompt,
@@ -82,33 +81,46 @@ def _serve(args: argparse.Namespace) -> None:
     import uvicorn
     from pythia.api import create_app
 
-    app = create_app(ollama_url=args.ollama_url, model=args.model)
+    app = create_app(provider=args.provider, ollama_url=args.ollama_url, model=args.model)
     uvicorn.run(app, host="0.0.0.0", port=args.port)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="pythia", description="Pythia simulation engine")
     parser.add_argument("--ollama-url", default=OLLAMA_BASE_URL, help="Ollama API base URL")
-    parser.add_argument("--model", default=OLLAMA_MODEL, help="Ollama model name")
+    parser.add_argument("--model", default=None, help="Model name (overrides provider default)")
+    parser.add_argument(
+        "--provider",
+        default=None,
+        choices=["ollama", "openai", "anthropic"],
+        help="LLM provider (default: auto-detect from env vars)",
+    )
     parser.add_argument("--runs-dir", default=RUNS_DIR, help="Output directory for run JSON files")
+    parser.add_argument(
+        "--log-level",
+        default=LOG_LEVEL,
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        help="Console log level (file always gets DEBUG)",
+    )
+    parser.add_argument("--log-dir", default=LOG_DIR, help="Directory for log files")
 
     subparsers = parser.add_subparsers(dest="command")
 
-    # python -m pythia serve
     serve_parser = subparsers.add_parser("serve", help="Start API server")
     serve_parser.add_argument("--port", type=int, default=8000, help="Server port")
 
-    # python -m pythia oracle "prompt"
     oracle_parser = subparsers.add_parser("oracle", help="Run oracle loop (multi-run self-improving simulation)")
     oracle_parser.add_argument("prompt", help="Decision or question to simulate")
     oracle_parser.add_argument("--runs", type=int, default=5, help="Maximum number of simulation runs")
     oracle_parser.add_argument("--context", default=None, help="Additional context paragraph")
 
-    # python -m pythia "prompt" (positional, no subcommand needed)
     parser.add_argument("prompt", nargs="?", default=None, help="Decision or question to simulate")
     parser.add_argument("--context", default=None, help="Additional context paragraph")
 
     args = parser.parse_args()
+
+    from pythia.logger import setup_logging
+    setup_logging(level=args.log_level, log_dir=args.log_dir)
 
     if args.command == "serve":
         _serve(args)

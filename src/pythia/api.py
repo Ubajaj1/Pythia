@@ -3,36 +3,54 @@
 from __future__ import annotations
 
 import json
+import logging
+import time
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from pythia.config import OLLAMA_BASE_URL, OLLAMA_MODEL, RUNS_DIR
-from pythia.llm import OllamaClient
+from pythia.llm import OllamaClient, build_llm_client
 from pythia.models import OracleRequest, SimulateRequest
 from pythia.oracle_loop import run_oracle_loop
 from pythia.orchestrator import run_simulation
 
+logger = logging.getLogger(__name__)
+
 
 def create_app(
+    provider: str | None = None,
     ollama_url: str = OLLAMA_BASE_URL,
-    model: str = OLLAMA_MODEL,
+    model: str | None = None,
     runs_dir: str = RUNS_DIR,
 ) -> FastAPI:
     app = FastAPI(title="Pythia", description="Opinion dynamics simulation engine")
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173"],
+        allow_origins=["*"],
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
-    llm = OllamaClient(base_url=ollama_url, model=model)
+    llm = build_llm_client(provider=provider, ollama_url=ollama_url, model=model)
+
+    @app.middleware("http")
+    async def log_requests(request: Request, call_next):
+        t0 = time.perf_counter()
+        logger.info("Request %s %s", request.method, request.url.path)
+        response = await call_next(request)
+        latency_ms = round((time.perf_counter() - t0) * 1000)
+        logger.info(
+            "Response %s %s status=%d latency_ms=%d",
+            request.method, request.url.path, response.status_code, latency_ms,
+        )
+        return response
 
     @app.post("/api/simulate")
     async def simulate(request: SimulateRequest) -> dict:
+        logger.info("Simulate request prompt=%r", request.prompt[:60])
         result = await run_simulation(
             prompt=request.prompt,
             context=request.context,
@@ -43,6 +61,7 @@ def create_app(
 
     @app.post("/api/oracle")
     async def oracle(request: OracleRequest) -> dict:
+        logger.info("Oracle request prompt=%r max_runs=%d", request.prompt[:60], request.max_runs)
         result = await run_oracle_loop(
             prompt=request.prompt,
             context=request.context,

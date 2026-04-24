@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 
 from pythia.llm import LLMClient
 from pythia.models import Agent, AgentArchetype, Relationship, ScenarioBlueprint
+
+logger = logging.getLogger(__name__)
 
 PASS1_SYSTEM = """\
 You are Pythia's Agent Generator. Given a scenario and an agent archetype, generate unique agents as JSON.
@@ -39,6 +42,11 @@ async def _generate_for_archetype(
     llm: LLMClient,
 ) -> list[Agent]:
     """Pass 1: Generate agents for one archetype."""
+    logger.info(
+        "Generating archetype role=%s count=%d bias=%s stance_range=[%.2f, %.2f]",
+        archetype.role, archetype.count, archetype.bias,
+        archetype.stance_range[0], archetype.stance_range[1],
+    )
     system = PASS1_SYSTEM.format(
         stance_low=archetype.stance_range[0],
         stance_high=archetype.stance_range[1],
@@ -54,9 +62,11 @@ async def _generate_for_archetype(
         f"Count: {archetype.count}\n\n"
         f"Generate {archetype.count} agent(s)."
     )
+    logger.debug("Generator pass1 prompt archetype=%s:\n%s", archetype.role, prompt)
+
     raw = await llm.generate(prompt=prompt, system=system)
     agents_data = raw.get("agents", [])
-    return [
+    agents = [
         Agent(
             id=a["id"],
             name=a["name"],
@@ -69,6 +79,13 @@ async def _generate_for_archetype(
         )
         for a in agents_data
     ]
+    logger.info(
+        "Archetype generated role=%s agents=%s stances=%s",
+        archetype.role,
+        [a.name for a in agents],
+        [f"{a.initial_stance:.2f}" for a in agents],
+    )
+    return agents
 
 
 async def _assign_relationships(
@@ -76,11 +93,14 @@ async def _assign_relationships(
     llm: LLMClient,
 ) -> list[Agent]:
     """Pass 2: Assign relationships given the full cast."""
+    logger.info("Assigning relationships agents=%d", len(agents))
     agent_summaries = [
         f"- {a.id} ({a.name}): {a.role}, bias={a.bias}, stance={a.initial_stance}, persona: {a.persona}"
         for a in agents
     ]
     prompt = "Agents in this simulation:\n" + "\n".join(agent_summaries)
+    logger.debug("Generator pass2 prompt:\n%s", prompt)
+
     raw = await llm.generate(prompt=prompt, system=PASS2_SYSTEM)
 
     relationships_map = raw.get("relationships", {})
@@ -95,6 +115,13 @@ async def _assign_relationships(
             if r.get("target") in agent_ids and r["target"] != agent.id
         ]
         updated.append(agent.model_copy(update={"relationships": rels}))
+
+    total_rels = sum(len(a.relationships) for a in updated)
+    logger.info("Relationships assigned total=%d", total_rels)
+    for a in updated:
+        if a.relationships:
+            rel_summary = ", ".join(f"{r.type}→{r.target}({r.weight:.1f})" for r in a.relationships)
+            logger.debug("  %s relationships: %s", a.name, rel_summary)
     return updated
 
 
@@ -111,6 +138,8 @@ async def generate_agents(
     llm: LLMClient,
 ) -> list[Agent]:
     """Generate agents from a blueprint. Two-pass: create agents, then assign relationships."""
+    logger.info("Generation started archetypes=%d", len(blueprint.agent_archetypes))
+
     # Pass 1: parallel generation per archetype
     tasks = [
         _generate_for_archetype(arch, blueprint, llm)
@@ -121,8 +150,13 @@ async def generate_agents(
 
     # Diversity check: if stances are too clustered, regenerate the most extreme archetype
     if not _check_diversity(agents) and len(blueprint.agent_archetypes) > 1:
-        stances = {a.id: a.initial_stance for a in agents}
-        mean = sum(stances.values()) / len(stances)
+        stances = [a.initial_stance for a in agents]
+        spread = max(stances) - min(stances)
+        logger.warning(
+            "Stance diversity check failed spread=%.2f min_required=0.60 — regenerating archetype",
+            spread,
+        )
+        mean = sum(stances) / len(stances)
         archetype_dists = []
         for i, arch in enumerate(blueprint.agent_archetypes):
             arch_agents = [a for a in agents if a.role == arch.role]
@@ -131,10 +165,15 @@ async def generate_agents(
         archetype_dists.sort(key=lambda x: x[1])
         regen_idx = archetype_dists[0][0]
         regen_arch = blueprint.agent_archetypes[regen_idx]
+        logger.info("Regenerating archetype role=%s", regen_arch.role)
         new_agents = await _generate_for_archetype(regen_arch, blueprint, llm)
         agents = [a for a in agents if a.role != regen_arch.role] + new_agents
 
     # Pass 2: assign relationships
     agents = await _assign_relationships(agents, llm)
 
+    logger.info(
+        "Generation complete total_agents=%d names=%s",
+        len(agents), [a.name for a in agents],
+    )
     return agents

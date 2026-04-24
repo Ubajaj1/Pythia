@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -24,6 +25,8 @@ from pythia.models import (
     TickRecord,
 )
 from pythia.temple import amend_agent
+
+logger = logging.getLogger(__name__)
 
 
 def _build_run_result(
@@ -94,6 +97,7 @@ def _build_run_result(
     runs_path = Path(runs_dir)
     runs_path.mkdir(parents=True, exist_ok=True)
     (runs_path / f"{run_id}.json").write_text(result.model_dump_json(indent=2, by_alias=True))
+    logger.debug("Run result saved run_id=%s path=%s", run_id, runs_path / f"{run_id}.json")
 
     return result
 
@@ -110,12 +114,19 @@ async def run_oracle_loop(
     Stops early if all agents pass coherence evaluation.
     Re-uses blueprint and (amended) agents across runs — no re-analysis.
     """
+    logger.info(
+        "Oracle Loop started prompt=%r max_runs=%d",
+        prompt[:60] + ("..." if len(prompt) > 60 else ""), max_runs,
+    )
+
     blueprint = await analyze_scenario(prompt, llm=llm, context=context)
     agents = await generate_agents(blueprint, llm=llm)
 
     run_records: list[OracleRunRecord] = []
 
     for run_num in range(1, max_runs + 1):
+        logger.info("Oracle run %d/%d started agents=%d", run_num, max_runs, len(agents))
+
         engine = SimulationEngine(blueprint=blueprint, agents=agents, llm=llm)
         ticks = await engine.run()
         run_result = _build_run_result(run_num, prompt, blueprint, agents, ticks, runs_dir)
@@ -123,6 +134,13 @@ async def run_oracle_loop(
         evaluations = await evaluate_run(run_result, agents, llm)
         coherence_score = sum(1 for e in evaluations if e.is_coherent) / len(evaluations)
         failing = [e for e in evaluations if not e.is_coherent]
+
+        logger.info(
+            "Oracle run %d/%d complete coherence=%.1f%% (%d/%d coherent) failing=%s",
+            run_num, max_runs, coherence_score * 100,
+            len(evaluations) - len(failing), len(evaluations),
+            [e.agent_id for e in failing] or "none",
+        )
 
         run_records.append(OracleRunRecord(
             run_number=run_num,
@@ -133,9 +151,11 @@ async def run_oracle_loop(
         ))
 
         if not failing:
+            logger.info("All agents coherent — stopping early after %d run(s)", run_num)
             break
 
         if run_num < max_runs:
+            logger.info("Amending %d failing agent(s) before run %d", len(failing), run_num + 1)
             amended_agents = []
             for agent in agents:
                 failing_eval = next((e for e in failing if e.agent_id == agent.id), None)
@@ -146,6 +166,12 @@ async def run_oracle_loop(
                 else:
                     amended_agents.append(agent)
             agents = amended_agents
+
+    final_coherence = run_records[-1].coherence_score if run_records else 0.0
+    logger.info(
+        "Oracle Loop complete runs=%d final_coherence=%.1f%%",
+        len(run_records), final_coherence * 100,
+    )
 
     return OracleLoopResult(
         prompt=prompt,
