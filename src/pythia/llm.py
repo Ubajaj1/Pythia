@@ -92,35 +92,42 @@ def build_llm_client(
 ) -> "OllamaClient":
     """Return the right LLM client based on provider arg or env vars.
 
-    Priority: explicit provider arg > ANTHROPIC_API_KEY > OPENAI_API_KEY > Ollama.
+    Priority: explicit provider arg > ANTHROPIC_API_KEY > GROQ_API_KEY > OPENAI_API_KEY > Ollama.
     """
     from pythia.config import (
         ANTHROPIC_API_KEY, ANTHROPIC_MODEL,
+        GROQ_API_KEY, GROQ_BASE_URL, GROQ_MODEL,
         OLLAMA_BASE_URL, OLLAMA_MODEL,
         OPENAI_API_KEY, OPENAI_MODEL,
     )
 
     effective_provider = provider or (
         "anthropic" if ANTHROPIC_API_KEY else
-        "openai" if OPENAI_API_KEY else
+        "groq"      if GROQ_API_KEY else
+        "openai"    if OPENAI_API_KEY else
         "ollama"
     )
 
     if effective_provider == "anthropic":
         from pythia.anthropic_client import AnthropicClient
-        key = ANTHROPIC_API_KEY
-        if not key:
+        if not ANTHROPIC_API_KEY:
             raise ValueError("ANTHROPIC_API_KEY env var is not set")
         logger.info("LLM provider=anthropic model=%s", model or ANTHROPIC_MODEL)
-        return AnthropicClient(api_key=key, model=model or ANTHROPIC_MODEL)  # type: ignore[return-value]
+        return AnthropicClient(api_key=ANTHROPIC_API_KEY, model=model or ANTHROPIC_MODEL)  # type: ignore[return-value]
+
+    if effective_provider == "groq":
+        from pythia.openai_client import OpenAIClient
+        if not GROQ_API_KEY:
+            raise ValueError("GROQ_API_KEY env var is not set")
+        logger.info("LLM provider=groq model=%s", model or GROQ_MODEL)
+        return OpenAIClient(api_key=GROQ_API_KEY, model=model or GROQ_MODEL, base_url=GROQ_BASE_URL)  # type: ignore[return-value]
 
     if effective_provider == "openai":
         from pythia.openai_client import OpenAIClient
-        key = OPENAI_API_KEY
-        if not key:
+        if not OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY env var is not set")
         logger.info("LLM provider=openai model=%s", model or OPENAI_MODEL)
-        return OpenAIClient(api_key=key, model=model or OPENAI_MODEL)  # type: ignore[return-value]
+        return OpenAIClient(api_key=OPENAI_API_KEY, model=model or OPENAI_MODEL)  # type: ignore[return-value]
 
     logger.info("LLM provider=ollama url=%s model=%s", ollama_url or OLLAMA_BASE_URL, model or OLLAMA_MODEL)
     return OllamaClient(base_url=ollama_url or OLLAMA_BASE_URL, model=model or OLLAMA_MODEL)

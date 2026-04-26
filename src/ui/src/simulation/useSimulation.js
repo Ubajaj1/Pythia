@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useCallback, useRef } from 'react'
+import { useReducer, useEffect, useCallback, useRef, useState } from 'react'
 import { simReducer, makeInitialState, TICKS_PER_RUN } from './reducer'
 import { CROWD_STATES } from './scenarios'
 
@@ -7,6 +7,8 @@ const TICK_MS = 2300
 export function useSimulation(protagonists, amendments) {
   const [state, dispatch] = useReducer(simReducer, protagonists, makeInitialState)
   const timerRef = useRef(null)
+  const [paused, setPaused] = useState(false)
+  const togglePause = useCallback(() => setPaused(p => !p), [])
 
   // Spawn stagger on mount and after reset
   useEffect(() => {
@@ -24,11 +26,12 @@ export function useSimulation(protagonists, amendments) {
 
   // Tick interval
   useEffect(() => {
+    if (paused) return
     timerRef.current = setInterval(() => {
       dispatch({ type: 'TICK' })
     }, TICK_MS)
     return () => clearInterval(timerRef.current)
-  }, [state.gen])
+  }, [state.gen, paused])
 
   // Temple entry at tick 9
   useEffect(() => {
@@ -65,6 +68,7 @@ export function useSimulation(protagonists, amendments) {
 
   const restart = useCallback(() => {
     clearInterval(timerRef.current)
+    setPaused(false)
     dispatch({ type: 'RESET', protagonists })
   }, [protagonists])
 
@@ -78,6 +82,8 @@ export function useSimulation(protagonists, amendments) {
     protoStates: state.protoStates,
     accuracyHistory: state.accuracyHistory,
     amendments,
+    paused,
+    togglePause,
     restart,
   }
 }
@@ -86,6 +92,8 @@ export function useApiSimulation(scenario) {
   const [state, dispatch] = useReducer(simReducer, scenario.protagonists, makeInitialState)
   const timerRef = useRef(null)
   const tickDataRef = useRef(scenario.ticks || [])
+  const [paused, setPaused] = useState(false)
+  const togglePause = useCallback(() => setPaused(p => !p), [])
 
   // Spawn stagger on mount
   useEffect(() => {
@@ -101,11 +109,12 @@ export function useApiSimulation(scenario) {
 
   // Tick interval — replay API data
   useEffect(() => {
+    if (paused) return
     timerRef.current = setInterval(() => {
       dispatch({ type: 'TICK' })
     }, TICK_MS)
     return () => clearInterval(timerRef.current)
-  }, [state.gen])
+  }, [state.gen, paused])
 
   // Update confidence from API tick data
   useEffect(() => {
@@ -154,6 +163,7 @@ export function useApiSimulation(scenario) {
 
   const restart = useCallback(() => {
     clearInterval(timerRef.current)
+    setPaused(false)
     dispatch({ type: 'RESET', protagonists: scenario.protagonists })
   }, [scenario.protagonists])
 
@@ -167,6 +177,93 @@ export function useApiSimulation(scenario) {
     protoStates: state.protoStates,
     accuracyHistory: state.accuracyHistory,
     amendments: scenario.amendments,
+    paused,
+    togglePause,
+    restart,
+  }
+}
+
+export function useStreamingSimulation(scenario, externalTicksRef) {
+  const [state, dispatch] = useReducer(simReducer, scenario.protagonists, makeInitialState)
+  const timerRef = useRef(null)
+  const [paused, setPaused] = useState(false)
+  const togglePause = useCallback(() => setPaused(p => !p), [])
+  const tickRef = useRef(0)
+  tickRef.current = state.tick
+  const lastTickTimeRef = useRef(Date.now() - TICK_MS)
+
+  useEffect(() => {
+    const timeouts = scenario.protagonists.map((_, i) =>
+      setTimeout(() => {
+        const agent = scenario.agents?.[i]
+        dispatch({ type: 'SPAWN', idx: i, conf: agent ? agent.initial_stance * 100 : 50 })
+      }, 600 + i * 320)
+    )
+    return () => timeouts.forEach(clearTimeout)
+  }, [state.gen, scenario.protagonists.length])
+
+  useEffect(() => {
+    if (paused) return
+    timerRef.current = setInterval(() => {
+      const currentTick = tickRef.current
+      if (currentTick >= TICKS_PER_RUN) return
+      const dataReady = externalTicksRef.current.length > currentTick
+      const timeReady = Date.now() - lastTickTimeRef.current >= TICK_MS
+      if (dataReady && timeReady) {
+        dispatch({ type: 'TICK' })
+        lastTickTimeRef.current = Date.now()
+      }
+    }, 200)
+    return () => clearInterval(timerRef.current)
+  }, [state.gen, paused, externalTicksRef])
+
+  useEffect(() => {
+    const tickData = externalTicksRef.current[state.tick - 1]
+    if (!tickData?.events) return
+    tickData.events.forEach(event => {
+      const idx = scenario.protagonists.findIndex(p => p.id === event.agent_id)
+      if (idx >= 0) dispatch({ type: 'SPAWN', idx, conf: event.stance * 100 })
+    })
+  }, [state.tick])
+
+  useEffect(() => {
+    if (state.tick !== 9 || state.templeIdx !== null) return
+    const active = state.protoStates.map((ps, i) => (ps.spawned && !ps.inTemple ? i : -1)).filter(i => i >= 0)
+    if (!active.length) return
+    dispatch({ type: 'SEND_TO_TEMPLE', idx: active[Math.floor(Math.random() * active.length)] })
+  }, [state.tick])
+
+  useEffect(() => {
+    if (state.tick !== 16 || state.templeIdx === null) return
+    dispatch({ type: 'RETURN_FROM_TEMPLE' })
+  }, [state.tick])
+
+  useEffect(() => {
+    const returningIdx = state.protoStates.findIndex(ps => ps.returning)
+    if (returningIdx === -1) return
+    const t = setTimeout(() => dispatch({ type: 'MARK_NOT_RETURNING', idx: returningIdx }), 1600)
+    return () => clearTimeout(t)
+  }, [state.protoStates])
+
+  const restart = useCallback(() => {
+    clearInterval(timerRef.current)
+    setPaused(false)
+    lastTickTimeRef.current = Date.now() - TICK_MS
+    dispatch({ type: 'RESET', protagonists: scenario.protagonists })
+  }, [scenario.protagonists])
+
+  return {
+    tick: state.tick,
+    run: state.run,
+    progressPercent: (state.tick / TICKS_PER_RUN) * 100,
+    crowdStateIndex: state.crowdStateIndex,
+    crowdStateName: CROWD_STATES[state.crowdStateIndex],
+    templeIdx: state.templeIdx,
+    protoStates: state.protoStates,
+    accuracyHistory: state.accuracyHistory,
+    amendments: scenario.amendments || [],
+    paused,
+    togglePause,
     restart,
   }
 }

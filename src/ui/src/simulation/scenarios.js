@@ -102,6 +102,25 @@ export function scenarioFromRunResult(result) {
   }
 }
 
+export function scenarioFromStreamScenario(data) {
+  const protagonists = data.agents.map((agent, i) => ({
+    id: agent.id,
+    name: agent.name,
+    trait: agent.bias,
+    color: AGENT_COLORS[i % AGENT_COLORS.length].color,
+    glow: AGENT_COLORS[i % AGENT_COLORS.length].glow,
+  }))
+  const amendments = data.agents.map(agent => ['Recalibrating', `${agent.bias} parameters...`])
+  return {
+    name: data.title,
+    protagonists,
+    amendments,
+    agents: data.agents,
+    ticks: [],
+    tickCount: data.tick_count,
+  }
+}
+
 export function scenarioFromOracleResult(oracleResult) {
   if (!oracleResult.runs?.length) {
     throw new Error('Oracle result contains no runs')

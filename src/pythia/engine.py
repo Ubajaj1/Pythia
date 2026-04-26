@@ -130,28 +130,25 @@ class SimulationEngine:
         }
         self.recent_messages: list[dict] = []
         self._agent_map: dict[str, Agent] = {a.id: a for a in agents}
+        self._llm_semaphore = asyncio.Semaphore(3)
 
-    async def run(self) -> list[TickRecord]:
-        """Run the full simulation and return all tick records."""
+    async def run_stream(self):
+        """Async generator — yields each TickRecord as it completes."""
         logger.info(
             "Simulation started scenario=%r agents=%d ticks=%d",
             self.blueprint.title, len(self.agents), self.blueprint.tick_count,
         )
-        agent_summary = ", ".join(
-            f"{a.name}({a.initial_stance:.2f})" for a in self.agents
-        )
-        logger.debug("Agents: %s", agent_summary)
-
-        tick_records: list[TickRecord] = []
+        logger.debug("Agents: %s", ", ".join(f"{a.name}({a.initial_stance:.2f})" for a in self.agents))
         for tick_num in range(1, self.blueprint.tick_count + 1):
             tick_record = await self._run_tick(tick_num)
-            tick_records.append(tick_record)
+            yield tick_record
+        logger.info("Simulation complete scenario=%r", self.blueprint.title)
 
-        final_agg = tick_records[-1].aggregate_stance if tick_records else 0.0
-        logger.info(
-            "Simulation complete scenario=%r ticks_run=%d final_aggregate=%.3f",
-            self.blueprint.title, len(tick_records), final_agg,
-        )
+    async def run(self) -> list[TickRecord]:
+        """Run the full simulation and return all tick records."""
+        tick_records = []
+        async for tick_record in self.run_stream():
+            tick_records.append(tick_record)
         return tick_records
 
     async def _run_tick(self, tick_num: int) -> TickRecord:
@@ -231,7 +228,8 @@ class SimulationEngine:
             agent.name, tick_num, system, prompt,
         )
 
-        raw = await self.llm.generate(prompt=prompt, system=system)
+        async with self._llm_semaphore:
+            raw = await self.llm.generate(prompt=prompt, system=system)
         action = TickAction.model_validate(raw)
 
         delta = action.stance - previous_stance

@@ -98,12 +98,43 @@ function ProtagNode({ protagonist, state, delay }) {
           color: 'var(--text-muted)',
           marginTop: 3,
         }}>{visible ? `${Math.round(conf)}%` : '—'}</div>
+        {protagonist.amended && (
+          <div style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 8,
+            color: '#7A6A3A',
+            marginTop: 3,
+            letterSpacing: '0.06em',
+          }}>↺ amended</div>
+        )}
       </div>
     </div>
   )
 }
 
-export default function Stage({ protagonists, protoStates }) {
+function SkeletonNode({ index }) {
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '10px 0',
+      borderBottom: '1px solid rgba(255,255,255,0.028)',
+      opacity: 0.18 + index * 0.04,
+    }}>
+      <div style={{ width: 42, height: 42, borderRadius: '50%', background: '#2a2a25', flexShrink: 0 }} />
+      <div style={{ flex: 1 }}>
+        <div style={{ width: '65%', height: 9, background: '#2a2a25', borderRadius: 2, marginBottom: 7 }} />
+        <div style={{ width: '45%', height: 7, background: '#1e1e1a', borderRadius: 2, marginBottom: 5 }} />
+        <div style={{ width: '25%', height: 7, background: '#1a1a17', borderRadius: 2 }} />
+      </div>
+    </div>
+  )
+}
+
+export default function Stage({ protagonists, protoStates, loading }) {
+  const showSkeleton = loading || protagonists.length === 0
+
   return (
     <div style={{
       width: 210,
@@ -128,14 +159,18 @@ export default function Stage({ protagonists, protoStates }) {
         marginBottom: 18,
       }}>// The Stage</div>
 
-      {protagonists.map((p, i) => (
-        <ProtagNode
-          key={p.id}
-          protagonist={p}
-          state={protoStates[i]}
-          delay={i * 0.1}
-        />
-      ))}
+      {showSkeleton ? (
+        Array.from({ length: 5 }).map((_, i) => <SkeletonNode key={i} index={i} />)
+      ) : (
+        protagonists.map((p, i) => (
+          <ProtagNode
+            key={p.id}
+            protagonist={p}
+            state={protoStates[i]}
+            delay={i * 0.1}
+          />
+        ))
+      )}
     </div>
   )
 }

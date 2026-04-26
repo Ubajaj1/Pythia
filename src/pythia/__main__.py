@@ -92,7 +92,7 @@ def main() -> None:
     parser.add_argument(
         "--provider",
         default=None,
-        choices=["ollama", "openai", "anthropic"],
+        choices=["ollama", "openai", "anthropic", "groq"],
         help="LLM provider (default: auto-detect from env vars)",
     )
     parser.add_argument("--runs-dir", default=RUNS_DIR, help="Output directory for run JSON files")

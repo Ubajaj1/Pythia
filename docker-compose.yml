@@ -1,0 +1,39 @@
+services:
+  backend:
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+    volumes:
+      - pythia_data:/app/data
+    networks:
+      - pythia_net
+    restart: unless-stopped
+
+  frontend:
+    build: src/ui
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - pythia_net
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama
+    profiles: ["ollama"]
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - pythia_net
+    restart: unless-stopped
+
+volumes:
+  pythia_data:
+  ollama_data:
+
+networks:
+  pythia_net:

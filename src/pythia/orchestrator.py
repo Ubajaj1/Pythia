@@ -70,6 +70,71 @@ def _compute_summary(result_partial: dict) -> RunSummary:
     )
 
 
+async def stream_simulation(
+    prompt: str,
+    llm: LLMClient,
+    context: str | None = None,
+    runs_dir: str = RUNS_DIR,
+    fast_llm: LLMClient | None = None,
+):
+    """Async generator streaming SSE-ready dicts: thinking → blueprint → scenario → tick×N → done.
+
+    llm      — used for analysis and agent generation (quality-sensitive, fewer calls)
+    fast_llm — used for per-tick simulation (high-volume, speed-sensitive); falls back to llm
+    """
+    # Emit immediately so the frontend can show the stage layout right away
+    yield {"type": "thinking"}
+
+    blueprint = await analyze_scenario(prompt, llm=llm, context=context)
+    # Emit after analysis so the header title appears before agents are generated
+    yield {
+        "type": "blueprint",
+        "data": {
+            "title": blueprint.title,
+            "tick_count": blueprint.tick_count,
+            "stance_spectrum": blueprint.stance_spectrum,
+        },
+    }
+
+    agents = await generate_agents(blueprint, llm=llm)
+    agent_infos = [
+        AgentInfo(id=a.id, name=a.name, role=a.role, persona=a.persona, bias=a.bias, initial_stance=a.initial_stance)
+        for a in agents
+    ]
+    yield {
+        "type": "scenario",
+        "data": {
+            "title": blueprint.title,
+            "scenario_type": blueprint.scenario_type,
+            "stance_spectrum": blueprint.stance_spectrum,
+            "tick_count": blueprint.tick_count,
+            "agents": [ai.model_dump(mode="json") for ai in agent_infos],
+        },
+    }
+
+    engine = SimulationEngine(blueprint=blueprint, agents=agents, llm=fast_llm or llm)
+    tick_records: list = []
+    async for tick_record in engine.run_stream():
+        tick_records.append(tick_record)
+        yield {"type": "tick", "data": tick_record.model_dump(mode="json")}
+
+    run_id = _generate_run_id()
+    partial = {"ticks": tick_records, "agents": agents}
+    summary = _compute_summary(partial)
+    result = RunResult(
+        run_id=run_id,
+        scenario=ScenarioInfo(input=prompt, type=blueprint.scenario_type, title=blueprint.title, stance_spectrum=blueprint.stance_spectrum),
+        agents=agent_infos,
+        ticks=tick_records,
+        summary=summary,
+    )
+    runs_path = Path(runs_dir)
+    runs_path.mkdir(parents=True, exist_ok=True)
+    (runs_path / f"{run_id}.json").write_text(result.model_dump_json(indent=2, by_alias=True))
+
+    yield {"type": "done", "data": result.model_dump(mode="json")}
+
+
 async def run_simulation(
     prompt: str,
     llm: LLMClient,

@@ -1,4 +1,7 @@
+import { useState } from 'react'
+
 export default function AccuracyCurve({ history }) {
+  const [showTooltip, setShowTooltip] = useState(false)
   const W = 500, H = 32, PAD = 6
   const MIN_ACC = 30, MAX_ACC = 100
 
@@ -23,16 +26,42 @@ export default function AccuracyCurve({ history }) {
       gap: 18,
       flexShrink: 0,
     }}>
-      <div style={{
-        fontFamily: 'var(--font-mono)',
-        fontSize: 8,
-        letterSpacing: '0.14em',
-        textTransform: 'uppercase',
-        color: 'var(--text-ui)',
-        whiteSpace: 'nowrap',
-        lineHeight: 1.6,
-      }}>
-        Prediction<br />Accuracy
+      <div
+        style={{ position: 'relative', cursor: 'help' }}
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+      >
+        <div style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 8,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: 'var(--text-ui)',
+          whiteSpace: 'nowrap',
+          lineHeight: 1.6,
+        }}>
+          Coherence<br />Score
+        </div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--gold-dim)', marginTop: 2 }}>ⓘ</div>
+        {showTooltip && (
+          <div style={{
+            position: 'absolute',
+            bottom: '100%',
+            left: 0,
+            width: 220,
+            background: '#1a1a17',
+            border: '1px solid #2a2a25',
+            padding: '8px 10px',
+            fontSize: 10,
+            color: '#8a8a7a',
+            lineHeight: 1.6,
+            zIndex: 10,
+            pointerEvents: 'none',
+            marginBottom: 6,
+          }}>
+            Measures whether each agent's actions matched their stated reasoning — internal self-consistency, not a comparison to real-world outcomes.
+          </div>
+        )}
       </div>
 
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"

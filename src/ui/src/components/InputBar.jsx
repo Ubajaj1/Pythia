@@ -1,39 +1,84 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { startDemoStream } from '../simulation/demo'
 
-const API_BASE = 'http://localhost:8000'
+const API_BASE = ''
 
-export default function InputBar({ onSimulationResult, onOracleResult, isLoading, setIsLoading }) {
+export default function InputBar({ onOracleResult, onStreamEvent, isLoading, setIsLoading, prefillPrompt }) {
   const [prompt, setPrompt] = useState('')
+  const cancelDemoRef = useRef(null)
+
+  useEffect(() => {
+    if (prefillPrompt) setPrompt(prefillPrompt)
+  }, [prefillPrompt])
   const [context, setContext] = useState('')
   const [error, setError] = useState(null)
 
-  async function handleSubmit(e, mode) {
+  async function handleConsult(e) {
     e.preventDefault()
     if (!prompt.trim() || isLoading) return
-
     setIsLoading(true)
     setError(null)
-
-    const endpoint = mode === 'oracle' ? '/api/oracle' : '/api/simulate'
-    const body = mode === 'oracle'
-      ? { prompt: prompt.trim(), context: context.trim() || undefined, max_runs: 5 }
-      : { prompt: prompt.trim(), context: context.trim() || undefined }
-
     try {
-      const resp = await fetch(`${API_BASE}${endpoint}`, {
+      const resp = await fetch(`${API_BASE}/api/simulate/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ prompt: prompt.trim(), context: context.trim() || undefined }),
       })
-
       if (!resp.ok) throw new Error(`Request failed: ${resp.status}`)
-
-      const result = await resp.json()
-      if (mode === 'oracle') {
-        onOracleResult(result)
-      } else {
-        onSimulationResult(result)
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop()
+        for (const part of parts) {
+          const line = part.trim()
+          if (line.startsWith('data: ')) {
+            const event = JSON.parse(line.slice(6))
+            if (event.type === 'error') throw new Error(event.message)
+            onStreamEvent(event)
+          }
+        }
       }
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  function handleDemo(e) {
+    e.preventDefault()
+    if (isLoading) return
+    if (cancelDemoRef.current) cancelDemoRef.current()
+    setError(null)
+    setIsLoading(true)
+    cancelDemoRef.current = startDemoStream((event) => {
+      onStreamEvent(event)
+      if (event.type === 'done') {
+        setIsLoading(false)
+        cancelDemoRef.current = null
+      }
+    })
+  }
+
+  async function handleOracle(e) {
+    e.preventDefault()
+    if (!prompt.trim() || isLoading) return
+    setIsLoading(true)
+    setError(null)
+    try {
+      const resp = await fetch(`${API_BASE}/api/oracle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: prompt.trim(), context: context.trim() || undefined, max_runs: 5 }),
+      })
+      if (!resp.ok) throw new Error(`Request failed: ${resp.status}`)
+      const result = await resp.json()
+      onOracleResult(result)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -52,7 +97,7 @@ export default function InputBar({ onSimulationResult, onOracleResult, isLoading
   }
 
   return (
-    <form onSubmit={e => handleSubmit(e, 'simulate')} style={{
+    <form onSubmit={handleConsult} style={{
       padding: '12px 20px',
       borderBottom: '1px solid #1a1a17',
       display: 'flex',
@@ -78,7 +123,7 @@ export default function InputBar({ onSimulationResult, onOracleResult, isLoading
       />
       <button
         type="button"
-        onClick={e => handleSubmit(e, 'simulate')}
+        onClick={handleConsult}
         disabled={isLoading || !prompt.trim()}
         style={{
           background: isLoading ? '#3a3520' : '#A88C52',
@@ -98,7 +143,7 @@ export default function InputBar({ onSimulationResult, onOracleResult, isLoading
       </button>
       <button
         type="button"
-        onClick={e => handleSubmit(e, 'oracle')}
+        onClick={handleOracle}
         disabled={isLoading || !prompt.trim()}
         style={{
           background: 'transparent',
@@ -115,6 +160,27 @@ export default function InputBar({ onSimulationResult, onOracleResult, isLoading
         }}
       >
         {isLoading ? 'Consulting...' : 'Oracle Loop ↻'}
+      </button>
+      <button
+        type="button"
+        onClick={handleDemo}
+        disabled={isLoading}
+        title="Run a mock demo — no API key needed"
+        style={{
+          background: 'transparent',
+          color: isLoading ? '#2a2a25' : '#4a4a44',
+          border: '1px solid #2a2a25',
+          borderRadius: '4px',
+          padding: '8px 12px',
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '11px',
+          cursor: isLoading ? 'wait' : 'pointer',
+          whiteSpace: 'nowrap',
+          letterSpacing: '0.08em',
+          opacity: isLoading ? 0.4 : 1,
+        }}
+      >
+        ▶ demo
       </button>
       {error && (
         <span style={{ color: '#C08878', fontSize: '12px', fontFamily: 'JetBrains Mono, monospace' }}>

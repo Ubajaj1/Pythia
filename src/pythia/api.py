@@ -9,12 +9,13 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
-from pythia.config import OLLAMA_BASE_URL, OLLAMA_MODEL, RUNS_DIR
+from pythia.config import GROQ_API_KEY, GROQ_FAST_MODEL, OLLAMA_BASE_URL, OLLAMA_MODEL, RUNS_DIR
 from pythia.llm import OllamaClient, build_llm_client
 from pythia.models import OracleRequest, SimulateRequest
 from pythia.oracle_loop import run_oracle_loop
-from pythia.orchestrator import run_simulation
+from pythia.orchestrator import run_simulation, stream_simulation
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,12 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(title="Pythia", description="Opinion dynamics simulation engine")
 
+    @app.on_event("startup")
+    async def _startup_banner():
+        print("\n  ┌─────────────────────────────────────┐")
+        print("  │  Pythia ready → http://localhost    │")
+        print("  └─────────────────────────────────────┘\n")
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -35,6 +42,12 @@ def create_app(
     )
 
     llm = build_llm_client(provider=provider, ollama_url=ollama_url, model=model)
+    # For Groq: use the fast 8b-instant model for high-volume tick calls (6000 RPM vs 30 RPM)
+    fast_llm = (
+        build_llm_client(provider=provider, ollama_url=ollama_url, model=GROQ_FAST_MODEL)
+        if GROQ_API_KEY and provider in (None, "groq") and not model
+        else None
+    )
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
@@ -47,6 +60,27 @@ def create_app(
             request.method, request.url.path, response.status_code, latency_ms,
         )
         return response
+
+    @app.post("/api/simulate/stream")
+    async def simulate_stream(request: SimulateRequest):
+        logger.info("Simulate stream request prompt=%r", request.prompt[:60])
+
+        async def event_stream():
+            try:
+                async for event in stream_simulation(
+                    prompt=request.prompt, context=request.context, llm=llm, runs_dir=runs_dir,
+                    fast_llm=fast_llm,
+                ):
+                    yield f"data: {json.dumps(event)}\n\n"
+            except Exception as exc:
+                logger.exception("Stream error: %s", exc)
+                yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     @app.post("/api/simulate")
     async def simulate(request: SimulateRequest) -> dict:

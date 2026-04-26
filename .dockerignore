@@ -1,0 +1,11 @@
+.git
+.github
+.pytest_cache
+.playwright-mcp
+__pycache__
+*.pyc
+*.egg-info
+node_modules
+data/
+.env
+docs/superpowers

@@ -1,4 +1,4 @@
-export default function Header({ scenarioName, tick, run, progressPercent, onRestart }) {
+export default function Header({ scenarioName, tick, run, progressPercent, onRestart, paused, onTogglePause }) {
   const tickStr = String(tick).padStart(2, '0')
   const runStr  = String(run).padStart(2, '0')
 
@@ -54,6 +54,21 @@ export default function Header({ scenarioName, tick, run, progressPercent, onRes
 
         {/* Tick + Restart */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <button
+            type="button"
+            aria-label={paused ? 'Resume simulation' : 'Pause simulation'}
+            onClick={onTogglePause}
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12,
+              color: 'var(--gold-ui)',
+              background: 'none',
+              border: '1px solid var(--gold-ui)',
+              padding: '5px 10px',
+              cursor: 'pointer',
+              lineHeight: 1,
+            }}
+          >{paused ? '▶' : '▐▐'}</button>
           <button
             type="button"
             aria-label="Restart simulation"

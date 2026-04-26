@@ -5,44 +5,84 @@
 
 ---
 
+## Quick Start (Docker)
+
+**With an API key (recommended):**
+
+```bash
+git clone https://github.com/utkarshbajaj/pythia
+cd pythia
+cp .env.example .env
+# Edit .env — add your ANTHROPIC_API_KEY or OPENAI_API_KEY
+docker compose up --build
+```
+
+Open `http://localhost` in your browser.
+
+**With Ollama (local, no API key):**
+
+```bash
+docker compose --profile ollama up --build
+# First run pulls the model — takes a few minutes
+docker compose exec ollama ollama pull llama3.1:8b
+```
+
+---
+
 ## What is Pythia?
 
-Most tools tell you *what* happened. Pythia tells you *what could happen* before you commit.
+You describe a decision. Pythia spins up a panel of agents representing different stakeholders — investors, customers, critics, advocates. They argue, shift positions, and reach (or fail to reach) consensus. Agents that reason poorly are pulled into a self-correction loop and re-enter the simulation smarter.
 
-You describe a decision — a product launch, a pricing change, a content strategy, a market entry — and Pythia spins up thousands of agents representing market segments, audience archetypes, and system actors. They interact, react, and evolve. Agents that predict poorly are pulled into a **Temple of Learning** and self-correct using behavioral amendment loops. By run 5, the oracle is measurably smarter than run 1.
+By run 5, the oracle is measurably more coherent than run 1.
 
-This is not a chatbot. This is a living, self-improving world that reacts to your decisions.
+---
+
+## Try It Yourself
+
+Paste any of these into the prompt field:
+
+| Scenario | Prompt |
+|----------|--------|
+| AI adoption | `Should our startup adopt AI coding tools for all engineering tasks?` |
+| Fundraising | `Should we raise a Series A or stay bootstrapped and grow profitably?` |
+| Environment policy | `Should a city ban single-use plastics in restaurants?` |
+| Remote work | `Should tech companies mandate a return to the office 5 days a week?` |
+| Platform policy | `Should a social media platform ban political advertising entirely?` |
+
+Hit **Consult the Oracle** for a single run, or **Oracle Loop ↻** to run 5 iterations with self-correction.
 
 ---
 
 ## How It Works
 
-### 1. Input — feed it anything
-- A document (article, report, policy draft)
-- A live API feed (news, market data, Reddit, LinkedIn)
-- A structured dataset (CSV, JSON)
-- A plain English description of your decision
+**1. Simulate** — Describe a decision. Pythia generates a cast of agents (archetypes, stances, roles) and runs a tick-by-tick opinion dynamics simulation. Each agent reacts to others, shifts position, and logs their reasoning.
 
-### 2. World Generation
-- GraphRAG extracts entities and relationships
-- Thousands of agents spawned with unique archetypes
-- Each agent gets: biography, behavioral traits, social connections, memory
+**2. Analyze** — After each run, an evaluator scores coherence: do the final stances match the agents' stated reasoning? Incoherent agents are flagged.
 
-### 3. Simulation Runs
-- Agents interact, form opinions, shift positions
-- **God's Eye View** — inject new variables mid-simulation
-- Watch the world reorganize in real time
+**3. Oracle Loop** — Flagged agents are amended (behavioral rules rewritten). The simulation reruns. Repeat up to 5×. Coherence score plotted across runs.
 
-### 4. The Oracle Loop (Self-Correction)
-- After each run, agent predictions compared to ground truth
-- Failing agents pulled into the **Temple of Learning**
-- Behavioral rules rewritten via amendment loops
-- Agents re-enter the simulation wiser
-- Run 5 is measurably smarter than Run 1
+---
 
-### 5. Cross-Simulation Learning
-- Insights from a finance simulation propagate to a market simulation
-- A Research DAG tracks lineage of all learned insights
+## Running Without Docker
+
+**Backend:**
+
+```bash
+pip install -e .
+python -m pythia serve          # API at http://localhost:8000
+# or: python -m pythia "Should we pivot to B2C?"
+# or: python -m pythia oracle "Should we raise a Series A?"
+```
+
+**Frontend:**
+
+```bash
+cd src/ui
+npm install
+npm run dev                     # UI at http://localhost:5173
+```
+
+Set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in your shell, or run Ollama locally.
 
 ---
 
@@ -50,32 +90,12 @@ This is not a chatbot. This is a living, self-improving world that reacts to you
 
 | Component | Technology |
 |-----------|------------|
-| Simulation engine | [OASIS by CAMEL-AI](https://github.com/camel-ai/oasis) |
-| Agent memory | Zep Cloud |
-| Knowledge graphs | GraphRAG |
-| Skill self-improvement | Cognee |
-| Cross-domain DAG | Hyperspace-inspired Research DAG |
-| Visualization | React + D3 / Three.js |
-| Deployment | Docker Compose |
-
----
-
-## Use Cases
-
-**Tier 1 — Demo-ready**
-- Market sentiment: simulate retail vs institutional investor reactions to a financial event
-- Content strategy: simulate audience response before publishing
-- Product launch: simulate early adopter vs skeptic dynamics
-
-**Tier 2 — Enterprise**
-- Competitive intelligence: simulate competitor responses to strategic moves
-- Policy stress-testing: simulate citizen segment reactions before rollout
-- Supply chain resilience: simulate cascade failures
-
-**Tier 3 — Moonshot**
-- Crisis communications: simulate narrative evolution during a PR crisis
-- Misinformation spread: find where to intervene
-- Epidemic modeling: simulate population responses to health interventions
+| Backend | Python 3.11, FastAPI, Uvicorn |
+| Agent simulation | Custom engine (opinion dynamics, tick-based) |
+| Oracle loop | Self-correction evaluator + amendment loop |
+| LLM providers | Anthropic, OpenAI, Ollama (auto-detected from env) |
+| Frontend | React 19, Vite |
+| Serving | Nginx (Docker) |
 
 ---
 
@@ -84,37 +104,15 @@ This is not a chatbot. This is a living, self-improving world that reacts to you
 ```
 Pythia/
 ├── src/
-│   ├── agents/       ← Agent archetypes, personality seeding, memory
-│   ├── simulation/   ← OASIS integration, world engine, God's Eye View
-│   ├── skills/       ← Cognee integration, amendment loop, Temple logic
-│   ├── ingestion/    ← Document, API, CSV, plain English input handlers
-│   ├── feedback/     ← Ground truth comparison, accuracy tracking
-│   └── ui/           ← React animated city, Temple building, split screen
-├── data/
-│   ├── raw/          ← Input feeds and documents
-│   ├── processed/    ← Knowledge graphs and entity extractions
-│   └── ground_truth/ ← Historical data for backtesting
-├── demos/            ← Pre-built demo scenarios (finance, content, product)
-├── docs/             ← Architecture diagrams, API docs
-├── tests/
-└── scripts/          ← Setup, Docker, utility scripts
+│   ├── pythia/        ← Backend: engine, oracle loop, API, LLM clients
+│   └── ui/            ← Frontend: React SPA
+├── tests/             ← 79 Python + 23 UI tests
+├── data/              ← Simulation run outputs (gitignored)
+├── docs/              ← Architecture diagram
+├── Dockerfile         ← Backend image
+├── docker-compose.yml ← Full stack (backend + nginx + optional Ollama)
+└── .env.example       ← API key template
 ```
-
----
-
-## Roadmap
-
-- [x] Project structure & planning
-- [ ] Phase 1 — Document ingestion → GraphRAG → agent generation → basic OASIS simulation
-- [ ] Phase 2 — Cognee oracle loop, ground truth comparison, Temple of Learning logic
-- [ ] Phase 3 — Animated city UI, split screen demo, God's Eye View variable injection
-- [ ] Phase 4 — Docker one-click setup, pre-built demos, public launch
-
----
-
-## Contributing
-
-Contributions are welcome. Please open an issue before submitting a large PR so we can align on direction.
 
 ---
 
