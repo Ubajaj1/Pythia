@@ -78,6 +78,9 @@ def create_app(
                     runs_dir=runs_dir, fast_llm=fast_llm,
                     document_text=request.document_text,
                     document_name=request.document_name,
+                    agent_count=request.agent_count,
+                    tick_count=request.tick_count,
+                    preset=request.preset,
                 ):
                     yield f"data: {json.dumps(event)}\n\n"
             except Exception as exc:
@@ -100,6 +103,9 @@ def create_app(
             runs_dir=runs_dir,
             document_text=request.document_text,
             document_name=request.document_name,
+            agent_count=request.agent_count,
+            tick_count=request.tick_count,
+            preset=request.preset,
         )
         return result.model_dump(mode="json")
 
@@ -114,6 +120,9 @@ def create_app(
             runs_dir=runs_dir,
             document_text=request.document_text,
             document_name=request.document_name,
+            agent_count=request.agent_count,
+            tick_count=request.tick_count,
+            preset=request.preset,
         )
         return result.model_dump(mode="json")
 

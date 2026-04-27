@@ -133,7 +133,6 @@ class SimulationEngine:
         }
         self.recent_messages: list[dict] = []
         self._agent_map: dict[str, Agent] = {a.id: a for a in agents}
-        self._llm_semaphore = asyncio.Semaphore(3)
         self.influence_graph = InfluenceGraph()
 
     async def run_stream(self):
@@ -280,8 +279,7 @@ class SimulationEngine:
             agent.name, tick_num, system, prompt,
         )
 
-        async with self._llm_semaphore:
-            raw = await self.llm.generate(prompt=prompt, system=system)
+        raw = await self.llm.generate(prompt=prompt, system=system)
         action = TickAction.model_validate(raw)
 
         delta = action.stance - previous_stance

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from pythia.analyzer import analyze_scenario
+from pythia.analyzer import analyze_scenario, resolve_preset
 from pythia.config import RUNS_DIR
 from pythia.decision import generate_decision_summary
 from pythia.engine import SimulationEngine
@@ -21,6 +21,21 @@ from pythia.models import (
 from pythia.summary import build_run_result, generate_run_id
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_counts(
+    preset: str | None,
+    agent_count: int | None,
+    tick_count: int | None,
+) -> tuple[int | None, int | None]:
+    """Resolve preset + explicit overrides into final agent_count and tick_count.
+
+    Priority: explicit values > preset > None (auto mode).
+    """
+    preset_vals = resolve_preset(preset)
+    final_agents = agent_count or preset_vals.get("agent_count")
+    final_ticks = tick_count or preset_vals.get("tick_count")
+    return final_agents, final_ticks
 
 
 async def _maybe_ground(
@@ -48,11 +63,16 @@ async def stream_simulation(
     fast_llm: LLMClient | None = None,
     document_text: str | None = None,
     document_name: str | None = None,
+    agent_count: int | None = None,
+    tick_count: int | None = None,
+    preset: str | None = None,
 ):
     """Async generator streaming SSE-ready dicts.
 
     Flow: thinking → grounding? → blueprint → scenario → tick×N → decision → done.
     """
+    final_agents, final_ticks = _resolve_counts(preset, agent_count, tick_count)
+
     yield {"type": "thinking"}
 
     # Optional grounding from documents
@@ -67,6 +87,7 @@ async def stream_simulation(
 
     blueprint = await analyze_scenario(
         prompt, llm=llm, context=enriched_context or None,
+        agent_count=final_agents, tick_count=final_ticks,
     )
     yield {
         "type": "blueprint",
@@ -134,8 +155,13 @@ async def run_simulation(
     runs_dir: str = RUNS_DIR,
     document_text: str | None = None,
     document_name: str | None = None,
+    agent_count: int | None = None,
+    tick_count: int | None = None,
+    preset: str | None = None,
 ) -> RunResultWithInsights:
     """Run the full simulation pipeline and return enriched results."""
+    final_agents, final_ticks = _resolve_counts(preset, agent_count, tick_count)
+
     # 1. Optional grounding
     grounding = await _maybe_ground(prompt, document_text, document_name, llm)
     grounding_text = format_grounding_for_prompt(grounding)
@@ -147,6 +173,7 @@ async def run_simulation(
     # 2. Analyze scenario
     blueprint = await analyze_scenario(
         prompt, llm=llm, context=enriched_context or None,
+        agent_count=final_agents, tick_count=final_ticks,
     )
 
     # 3. Generate agents

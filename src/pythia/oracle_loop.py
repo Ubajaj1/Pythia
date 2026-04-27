@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from pythia.analyzer import analyze_scenario
+from pythia.analyzer import analyze_scenario, resolve_preset
 from pythia.config import RUNS_DIR
 from pythia.decision import generate_decision_summary
 from pythia.engine import SimulationEngine
@@ -33,6 +33,9 @@ async def run_oracle_loop(
     runs_dir: str = RUNS_DIR,
     document_text: str | None = None,
     document_name: str | None = None,
+    agent_count: int | None = None,
+    tick_count: int | None = None,
+    preset: str | None = None,
 ) -> OracleLoopResult:
     """Run up to max_runs iterations of simulate → evaluate → amend.
 
@@ -44,6 +47,11 @@ async def run_oracle_loop(
         "Oracle Loop started prompt=%r max_runs=%d",
         prompt[:60] + ("..." if len(prompt) > 60 else ""), max_runs,
     )
+
+    # Resolve preset + explicit overrides
+    preset_vals = resolve_preset(preset)
+    final_agents = agent_count or preset_vals.get("agent_count")
+    final_ticks = tick_count or preset_vals.get("tick_count")
 
     # Optional document grounding
     grounding_text = ""
@@ -60,6 +68,7 @@ async def run_oracle_loop(
 
     blueprint = await analyze_scenario(
         prompt, llm=llm, context=enriched_context or None,
+        agent_count=final_agents, tick_count=final_ticks,
     )
     agents = await generate_agents(blueprint, llm=llm)
 

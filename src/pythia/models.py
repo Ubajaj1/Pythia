@@ -176,6 +176,9 @@ class OracleRequest(BaseModel):
     max_runs: int = Field(default=5, ge=1, le=10)
     document_text: str | None = None
     document_name: str | None = None
+    agent_count: int | None = Field(default=None, ge=3, le=15)
+    tick_count: int | None = Field(default=None, ge=5, le=50)
+    preset: str | None = None
 
 
 # --- Influence Graph ---
@@ -323,5 +326,8 @@ class SimulateRequestWithDocs(BaseModel):
     """Extended simulate request that optionally includes document text for grounding."""
     prompt: str
     context: str | None = None
-    document_text: str | None = None  # raw text from uploaded document
+    document_text: str | None = None
     document_name: str | None = None
+    agent_count: int | None = Field(default=None, ge=3, le=15)
+    tick_count: int | None = Field(default=None, ge=5, le=50)
+    preset: str | None = None  # "auto", "fast", "balanced", "deep", or None
