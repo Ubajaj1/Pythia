@@ -7,6 +7,8 @@ import Arena          from './components/Arena'
 import Temple         from './components/Temple'
 import AccuracyCurve  from './components/AccuracyCurve'
 import InputBar       from './components/InputBar'
+import DecisionPanel  from './components/DecisionPanel'
+import AgentDetail    from './components/AgentDetail'
 
 const SAMPLE_SCENARIOS = [
   "Should our startup adopt AI coding tools for all engineering tasks?",
@@ -98,9 +100,35 @@ function LandingScreen({ onSelectScenario }) {
   )
 }
 
-function SimulationView({ scenario, sim }) {
+function SimulationView({ scenario, sim, decisionSummary, influenceGraph, selectedAgentId, onAgentClick, onCloseAgent }) {
   const templeProtagonist = sim.templeIdx !== null ? scenario.protagonists[sim.templeIdx] : null
   const templeAmendment = sim.templeIdx !== null ? scenario.amendments[sim.templeIdx] : ['', '']
+
+  // Get the current aggregate stance from the latest tick data
+  const aggregateStance = sim.aggregateStance ?? null
+
+  // Build agent lookup for the detail panel
+  const selectedAgent = selectedAgentId
+    ? scenario.protagonists.find(p => p.id === selectedAgentId)
+    : null
+  const selectedAgentInfo = selectedAgentId && scenario.agents
+    ? scenario.agents.find(a => a.id === selectedAgentId)
+    : null
+
+  // Get influence and trajectory data from the graph
+  const agentInfluences = selectedAgentId && influenceGraph
+    ? (influenceGraph.edges || []).filter(e => e.target_id === selectedAgentId)
+    : []
+  const agentTrajectory = selectedAgentId && influenceGraph
+    ? (influenceGraph.nodes || []).filter(n => n.agent_id === selectedAgentId)
+    : []
+
+  // Build agent name map for influence display
+  const agentNames = {}
+  if (scenario.agents) {
+    scenario.agents.forEach(a => { agentNames[a.id] = a.name })
+  }
+  scenario.protagonists.forEach(p => { agentNames[p.id] = p.name })
 
   return (
     <>
@@ -113,31 +141,87 @@ function SimulationView({ scenario, sim }) {
         paused={sim.paused}
         onTogglePause={sim.togglePause}
       />
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        <Stage protagonists={scenario.protagonists} protoStates={sim.protoStates} />
-        <Arena crowdStateIndex={sim.crowdStateIndex} crowdStateName={sim.crowdStateName} />
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
+        <Stage
+          protagonists={scenario.protagonists}
+          protoStates={sim.protoStates}
+          selectedAgentId={selectedAgentId}
+          onAgentClick={onAgentClick}
+        />
+        {selectedAgent && (
+          <AgentDetail
+            agent={selectedAgent}
+            agentInfo={selectedAgentInfo}
+            influences={agentInfluences}
+            trajectory={agentTrajectory}
+            spectrum={scenario.stanceSpectrum}
+            onClose={onCloseAgent}
+          />
+        )}
+        <Arena
+          crowdStateIndex={sim.crowdStateIndex}
+          crowdStateName={sim.crowdStateName}
+          aggregateStance={aggregateStance}
+        />
         <Temple protagonist={templeProtagonist} amendment={templeAmendment} />
       </div>
-      <AccuracyCurve history={sim.accuracyHistory} />
+      {decisionSummary ? (
+        <DecisionPanel
+          decisionSummary={decisionSummary}
+          stanceSpectrum={scenario.stanceSpectrum}
+        />
+      ) : (
+        <AccuracyCurve history={sim.accuracyHistory} />
+      )}
     </>
   )
 }
 
-function ApiSimulation({ runResult }) {
+function ApiSimulation({ runResult, selectedAgentId, onAgentClick, onCloseAgent }) {
   const scenario = scenarioFromRunResult(runResult)
   const sim = useApiSimulation(scenario)
-  return <SimulationView scenario={scenario} sim={sim} />
+  return (
+    <SimulationView
+      scenario={scenario}
+      sim={sim}
+      decisionSummary={runResult.decision_summary}
+      influenceGraph={runResult.influence_graph}
+      selectedAgentId={selectedAgentId}
+      onAgentClick={onAgentClick}
+      onCloseAgent={onCloseAgent}
+    />
+  )
 }
 
-function OracleSimulation({ oracleResult }) {
+function OracleSimulation({ oracleResult, selectedAgentId, onAgentClick, onCloseAgent }) {
   const scenario = scenarioFromOracleResult(oracleResult)
   const sim = useOracleSimulation(scenario)
-  return <SimulationView scenario={scenario} sim={sim} />
+  return (
+    <SimulationView
+      scenario={scenario}
+      sim={sim}
+      decisionSummary={oracleResult.decision_summary}
+      influenceGraph={oracleResult.influence_graph}
+      selectedAgentId={selectedAgentId}
+      onAgentClick={onAgentClick}
+      onCloseAgent={onCloseAgent}
+    />
+  )
 }
 
-function StreamingSimulation({ scenario, ticksRef }) {
+function StreamingSimulation({ scenario, ticksRef, doneResult, selectedAgentId, onAgentClick, onCloseAgent }) {
   const sim = useStreamingSimulation(scenario, ticksRef)
-  return <SimulationView scenario={scenario} sim={sim} />
+  return (
+    <SimulationView
+      scenario={scenario}
+      sim={sim}
+      decisionSummary={doneResult?.decision_summary}
+      influenceGraph={doneResult?.influence_graph}
+      selectedAgentId={selectedAgentId}
+      onAgentClick={onAgentClick}
+      onCloseAgent={onCloseAgent}
+    />
+  )
 }
 
 function ThinkingLayout({ title }) {
@@ -166,17 +250,29 @@ export default function App() {
   const [runResult, setRunResult] = useState(null)
   const [oracleResult, setOracleResult] = useState(null)
   const [streamScenario, setStreamScenario] = useState(null)
-  const [streamPhase, setStreamPhase] = useState(null)   // null | 'thinking' | 'ready'
+  const [streamPhase, setStreamPhase] = useState(null)
   const [streamTitle, setStreamTitle] = useState('')
+  const [streamDoneResult, setStreamDoneResult] = useState(null)
   const streamTicksRef = useRef([])
   const [isLoading, setIsLoading] = useState(false)
   const [prefillPrompt, setPrefillPrompt] = useState('')
+  const [selectedAgentId, setSelectedAgentId] = useState(null)
+
+  function handleAgentClick(agentId) {
+    setSelectedAgentId(prev => prev === agentId ? null : agentId)
+  }
+
+  function handleCloseAgent() {
+    setSelectedAgentId(null)
+  }
 
   function handleOracleResult(result) {
     setStreamScenario(null)
     setStreamPhase(null)
+    setStreamDoneResult(null)
     setRunResult(null)
     setOracleResult(result)
+    setSelectedAgentId(null)
   }
 
   function handleStreamEvent(event) {
@@ -186,7 +282,9 @@ export default function App() {
       setOracleResult(null)
       setStreamScenario(null)
       setStreamTitle('')
+      setStreamDoneResult(null)
       setStreamPhase('thinking')
+      setSelectedAgentId(null)
     } else if (event.type === 'blueprint') {
       setStreamTitle(event.data.title)
     } else if (event.type === 'scenario') {
@@ -194,8 +292,9 @@ export default function App() {
       setStreamPhase('ready')
     } else if (event.type === 'tick') {
       streamTicksRef.current.push(event.data)
+    } else if (event.type === 'done') {
+      setStreamDoneResult(event.data)
     }
-    // 'done' just closes the stream; isLoading is cleared by InputBar's finally block
   }
 
   function handleSelectScenario(scenario) {
@@ -212,7 +311,14 @@ export default function App() {
         prefillPrompt={prefillPrompt}
       />
       {streamPhase === 'ready' && streamScenario ? (
-        <StreamingSimulation scenario={streamScenario} ticksRef={streamTicksRef} />
+        <StreamingSimulation
+          scenario={streamScenario}
+          ticksRef={streamTicksRef}
+          doneResult={streamDoneResult}
+          selectedAgentId={selectedAgentId}
+          onAgentClick={handleAgentClick}
+          onCloseAgent={handleCloseAgent}
+        />
       ) : streamPhase === 'thinking' ? (
         <ThinkingLayout title={streamTitle} />
       ) : isLoading ? (
@@ -224,9 +330,19 @@ export default function App() {
           The Oracle is deliberating...
         </div>
       ) : oracleResult ? (
-        <OracleSimulation oracleResult={oracleResult} />
+        <OracleSimulation
+          oracleResult={oracleResult}
+          selectedAgentId={selectedAgentId}
+          onAgentClick={handleAgentClick}
+          onCloseAgent={handleCloseAgent}
+        />
       ) : runResult ? (
-        <ApiSimulation runResult={runResult} />
+        <ApiSimulation
+          runResult={runResult}
+          selectedAgentId={selectedAgentId}
+          onAgentClick={handleAgentClick}
+          onCloseAgent={handleCloseAgent}
+        />
       ) : (
         <LandingScreen onSelectScenario={handleSelectScenario} />
       )}

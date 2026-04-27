@@ -99,6 +99,7 @@ export function scenarioFromRunResult(result) {
     amendments,
     ticks: result.ticks,
     agents: result.agents,
+    stanceSpectrum: result.scenario?.stance_spectrum || [],
   }
 }
 
@@ -118,6 +119,7 @@ export function scenarioFromStreamScenario(data) {
     agents: data.agents,
     ticks: [],
     tickCount: data.tick_count,
+    stanceSpectrum: data.stance_spectrum || [],
   }
 }
 
@@ -149,5 +151,6 @@ export function scenarioFromOracleResult(oracleResult) {
     ticks: firstRun.result.ticks,
     agents: firstRun.result.agents,
     coherenceHistory: oracleResult.coherence_history.map(s => Math.round(s * 100)),
+    stanceSpectrum: firstRun.result.scenario?.stance_spectrum || [],
   }
 }

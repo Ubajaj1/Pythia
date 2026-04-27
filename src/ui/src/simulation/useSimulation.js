@@ -167,6 +167,10 @@ export function useApiSimulation(scenario) {
     dispatch({ type: 'RESET', protagonists: scenario.protagonists })
   }, [scenario.protagonists])
 
+  // Compute aggregate stance from tick data
+  const tickData = tickDataRef.current[state.tick - 1]
+  const aggregateStance = tickData?.aggregate_stance ?? null
+
   return {
     tick: state.tick,
     run: state.run,
@@ -177,6 +181,7 @@ export function useApiSimulation(scenario) {
     protoStates: state.protoStates,
     accuracyHistory: state.accuracyHistory,
     amendments: scenario.amendments,
+    aggregateStance,
     paused,
     togglePause,
     restart,
@@ -252,6 +257,10 @@ export function useStreamingSimulation(scenario, externalTicksRef) {
     dispatch({ type: 'RESET', protagonists: scenario.protagonists })
   }, [scenario.protagonists])
 
+  // Compute aggregate stance from streaming tick data
+  const streamTickData = externalTicksRef.current[state.tick - 1]
+  const aggregateStance = streamTickData?.aggregate_stance ?? null
+
   return {
     tick: state.tick,
     run: state.run,
@@ -262,6 +271,7 @@ export function useStreamingSimulation(scenario, externalTicksRef) {
     protoStates: state.protoStates,
     accuracyHistory: state.accuracyHistory,
     amendments: scenario.amendments || [],
+    aggregateStance,
     paused,
     togglePause,
     restart,

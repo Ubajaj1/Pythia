@@ -6,12 +6,32 @@ const API_BASE = ''
 export default function InputBar({ onOracleResult, onStreamEvent, isLoading, setIsLoading, prefillPrompt }) {
   const [prompt, setPrompt] = useState('')
   const cancelDemoRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     if (prefillPrompt) setPrompt(prefillPrompt)
   }, [prefillPrompt])
   const [context, setContext] = useState('')
+  const [documentText, setDocumentText] = useState(null)
+  const [documentName, setDocumentName] = useState(null)
   const [error, setError] = useState(null)
+
+  function handleFileUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      setDocumentText(ev.target.result)
+      setDocumentName(file.name)
+    }
+    reader.readAsText(file)
+  }
+
+  function clearDocument() {
+    setDocumentText(null)
+    setDocumentName(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
   async function handleConsult(e) {
     e.preventDefault()
@@ -19,10 +39,18 @@ export default function InputBar({ onOracleResult, onStreamEvent, isLoading, set
     setIsLoading(true)
     setError(null)
     try {
+      const body = {
+        prompt: prompt.trim(),
+        context: context.trim() || undefined,
+      }
+      if (documentText) {
+        body.document_text = documentText
+        body.document_name = documentName
+      }
       const resp = await fetch(`${API_BASE}/api/simulate/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: prompt.trim(), context: context.trim() || undefined }),
+        body: JSON.stringify(body),
       })
       if (!resp.ok) throw new Error(`Request failed: ${resp.status}`)
       const reader = resp.body.getReader()
@@ -71,10 +99,19 @@ export default function InputBar({ onOracleResult, onStreamEvent, isLoading, set
     setIsLoading(true)
     setError(null)
     try {
+      const body = {
+        prompt: prompt.trim(),
+        context: context.trim() || undefined,
+        max_runs: 5,
+      }
+      if (documentText) {
+        body.document_text = documentText
+        body.document_name = documentName
+      }
       const resp = await fetch(`${API_BASE}/api/oracle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: prompt.trim(), context: context.trim() || undefined, max_runs: 5 }),
+        body: JSON.stringify(body),
       })
       if (!resp.ok) throw new Error(`Request failed: ${resp.status}`)
       const result = await resp.json()
@@ -121,6 +158,49 @@ export default function InputBar({ onOracleResult, onStreamEvent, isLoading, set
         disabled={isLoading}
         style={{ ...inputStyle, width: '200px' }}
       />
+      {/* Document upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".txt,.md,.csv,.json"
+        onChange={handleFileUpload}
+        style={{ display: 'none' }}
+      />
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={isLoading}
+        title={documentName ? `Attached: ${documentName}` : 'Attach a document to ground the simulation'}
+        style={{
+          background: documentName ? 'rgba(168,140,82,0.12)' : 'transparent',
+          color: documentName ? 'var(--gold)' : '#4a4a44',
+          border: `1px solid ${documentName ? 'var(--gold-dim)' : '#2a2a25'}`,
+          borderRadius: '4px',
+          padding: '8px 10px',
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '11px',
+          cursor: isLoading ? 'wait' : 'pointer',
+          whiteSpace: 'nowrap',
+          opacity: isLoading ? 0.4 : 1,
+          position: 'relative',
+        }}
+      >
+        {documentName ? `📄 ${documentName.slice(0, 12)}${documentName.length > 12 ? '…' : ''}` : '📎'}
+      </button>
+      {documentName && (
+        <button
+          type="button"
+          onClick={clearDocument}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+            fontSize: '12px',
+            padding: '0 2px',
+          }}
+        >×</button>
+      )}
       <button
         type="button"
         onClick={handleConsult}

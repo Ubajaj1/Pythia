@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 
 const CIRC = 2 * Math.PI * 18   // r=18, circumference ≈ 113.1
 
-function ProtagNode({ protagonist, state, delay }) {
+function ProtagNode({ protagonist, state, delay, onClick, isSelected }) {
   const dotRef = useRef(null)
 
   // Flash animation on return from temple
@@ -25,16 +25,26 @@ function ProtagNode({ protagonist, state, delay }) {
   const translateX = inTemple ? 16 : 0
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12,
-      padding: '10px 0',
-      borderBottom: '1px solid rgba(255,255,255,0.028)',
-      opacity: visible ? opacity : 0,
-      transform: `translateX(${visible ? translateX : -12}px)`,
-      transition: `opacity 0.7s ease ${delay}s, transform 0.7s ease ${delay}s`,
-    }}>
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 0',
+        borderBottom: '1px solid rgba(255,255,255,0.028)',
+        opacity: visible ? opacity : 0,
+        transform: `translateX(${visible ? translateX : -12}px)`,
+        transition: `opacity 0.7s ease ${delay}s, transform 0.7s ease ${delay}s`,
+        cursor: visible ? 'pointer' : 'default',
+        background: isSelected ? 'rgba(168,140,82,0.06)' : 'transparent',
+        borderRadius: 3,
+        marginLeft: -4,
+        marginRight: -4,
+        paddingLeft: 4,
+        paddingRight: 4,
+      }}
+    >
       {/* Ring + Dot */}
       <div style={{ position: 'relative', width: 42, height: 42, flexShrink: 0 }}>
         <svg style={{ position: 'absolute', inset: 0, width: 42, height: 42 }}
@@ -132,7 +142,7 @@ function SkeletonNode({ index }) {
   )
 }
 
-export default function Stage({ protagonists, protoStates, loading }) {
+export default function Stage({ protagonists, protoStates, loading, selectedAgentId, onAgentClick }) {
   const showSkeleton = loading || protagonists.length === 0
 
   return (
@@ -168,6 +178,8 @@ export default function Stage({ protagonists, protoStates, loading }) {
             protagonist={p}
             state={protoStates[i]}
             delay={i * 0.1}
+            onClick={() => onAgentClick?.(p.id)}
+            isSelected={selectedAgentId === p.id}
           />
         ))
       )}

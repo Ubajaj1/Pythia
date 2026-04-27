@@ -3,6 +3,7 @@ import { useRef, useEffect } from 'react'
 const C_REST   = [58,  58,  56]
 const C_ACTIVE = [200, 194, 185]
 const C_PANIC  = [160, 72,  60]
+const C_BULLISH = [106, 155, 106]
 
 function lerpRGB(a, b, t) {
   return a.map((v, i) => Math.round(v + (b[i] - v) * t))
@@ -30,14 +31,20 @@ function initParticles(W, H, count = 290) {
   }))
 }
 
-export default function Arena({ crowdStateIndex, crowdStateName }) {
+export default function Arena({ crowdStateIndex, crowdStateName, aggregateStance }) {
   const canvasRef  = useRef(null)
-  const stateRef   = useRef({ particles: [], crowdStateIndex: 0 })
+  const stateRef   = useRef({ particles: [], crowdStateIndex: 0, aggregateStance: 0.5 })
   const rafRef     = useRef(null)
 
   useEffect(() => {
     stateRef.current.crowdStateIndex = crowdStateIndex
   }, [crowdStateIndex])
+
+  useEffect(() => {
+    if (aggregateStance != null) {
+      stateRef.current.aggregateStance = aggregateStance
+    }
+  }, [aggregateStance])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -80,10 +87,20 @@ export default function Arena({ crowdStateIndex, crowdStateName }) {
         if (p.y < 0) p.y = H; if (p.y > H) p.y = 0
         p.ct += (cfg.ct - p.ct) * 0.018
 
+        // Use aggregate stance to modulate color intensity
+        // Extreme stances (near 0 or 1) = more active colors
+        const agg = stateRef.current.aggregateStance
+        const extremity = Math.abs(agg - 0.5) * 2  // 0 at center, 1 at extremes
+        const colorBlend = Math.max(p.ct, extremity * 0.6)
+
         const rgb = cfg.panic
-          ? lerpRGB(C_REST, C_PANIC, p.ct)
-          : lerpRGB(C_REST, C_ACTIVE, p.ct)
-        const alpha = 0.38 + p.ct * 0.48
+          ? lerpRGB(C_REST, C_PANIC, colorBlend)
+          : agg < 0.35
+            ? lerpRGB(C_REST, C_PANIC, colorBlend * 0.6)
+            : agg > 0.65
+              ? lerpRGB(C_REST, C_BULLISH, colorBlend * 0.6)
+              : lerpRGB(C_REST, C_ACTIVE, colorBlend)
+        const alpha = 0.38 + colorBlend * 0.48
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.sz, 0, Math.PI * 2)
         ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`
@@ -118,7 +135,14 @@ export default function Arena({ crowdStateIndex, crowdStateName }) {
         textTransform: 'uppercase',
         color: 'var(--text-ui)',
         pointerEvents: 'none',
-      }}>{crowdStateName}</div>
+      }}>
+        {crowdStateName}
+        {aggregateStance != null && (
+          <span style={{ marginLeft: 8, color: 'var(--gold-dim)' }}>
+            · {(aggregateStance * 100).toFixed(0)}%
+          </span>
+        )}
+      </div>
     </div>
   )
 }
