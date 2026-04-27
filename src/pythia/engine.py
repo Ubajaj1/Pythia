@@ -9,6 +9,7 @@ import logging
 from pythia.llm import LLMClient
 from pythia.models import (
     Agent,
+    InfluenceGraph,
     ScenarioBlueprint,
     TickAction,
     TickEvent,
@@ -44,7 +45,7 @@ AGENT_PROMPT_TEMPLATE = """\
 Scenario: {title} — {description}
 Dynamics: {dynamics}
 Stance spectrum: {spectrum}
-
+{grounding}
 Current world state:
 - Aggregate sentiment: {aggregate_stance} ({aggregate_label})
 - Other agents:
@@ -117,10 +118,12 @@ class SimulationEngine:
         blueprint: ScenarioBlueprint,
         agents: list[Agent],
         llm: LLMClient,
+        grounding_context: str = "",
     ):
         self.blueprint = blueprint
         self.agents = agents
         self.llm = llm
+        self.grounding_context = grounding_context
         self.memories: dict[str, AgentMemory] = {
             a.id: AgentMemory(a.id) for a in agents
         }
@@ -131,6 +134,7 @@ class SimulationEngine:
         self.recent_messages: list[dict] = []
         self._agent_map: dict[str, Agent] = {a.id: a for a in agents}
         self._llm_semaphore = asyncio.Semaphore(3)
+        self.influence_graph = InfluenceGraph()
 
     async def run_stream(self):
         """Async generator — yields each TickRecord as it completes."""
@@ -152,13 +156,16 @@ class SimulationEngine:
         return tick_records
 
     async def _run_tick(self, tick_num: int) -> TickRecord:
-        """Run a single tick: all agents reason in parallel."""
+        """Run a single tick: all agents reason in parallel, update influence graph."""
         aggregate = self._compute_aggregate()
         logger.info(
             "Tick %d/%d aggregate_stance=%.3f (%s)",
             tick_num, self.blueprint.tick_count, aggregate,
             _stance_to_label(aggregate, self.blueprint.stance_spectrum),
         )
+
+        # Snapshot pre-tick stances for influence tracking
+        pre_tick_stances = {aid: s["stance"] for aid, s in self.current_stances.items()}
 
         tasks = [
             self._run_agent_tick(agent, tick_num, aggregate)
@@ -168,6 +175,13 @@ class SimulationEngine:
 
         new_messages: list[dict] = []
         for event in events:
+            # Record node in influence graph
+            self.influence_graph.add_tick_state(
+                agent_id=event.agent_id, tick=tick_num,
+                stance=event.stance, action=event.action,
+                reasoning=event.reasoning, emotion=event.emotion,
+            )
+
             self.current_stances[event.agent_id] = {
                 "stance": event.stance,
                 "action": event.action,
@@ -189,9 +203,46 @@ class SimulationEngine:
                     "message": event.message,
                 })
 
+        # Record influence edges: for each message, track the target's stance change
+        for msg in new_messages:
+            target_id = msg["to"]
+            source_id = msg["from"]
+            target_event = next((e for e in events if e.agent_id == target_id), None)
+            if target_event:
+                self.influence_graph.add_influence(
+                    source_id=source_id,
+                    target_id=target_id,
+                    tick=tick_num,
+                    message=msg["message"],
+                    source_stance=pre_tick_stances.get(source_id, 0.5),
+                    target_stance_before=pre_tick_stances.get(target_id, 0.5),
+                    target_stance_after=target_event.stance,
+                    edge_type="message",
+                )
+
+        # Detect herd pressure: if aggregate shifted significantly, record implicit influence
+        new_aggregate = self._compute_aggregate()
+        agg_shift = abs(new_aggregate - aggregate)
+        if agg_shift > 0.03 and tick_num > 1:
+            for event in events:
+                agent_delta = event.stance - pre_tick_stances.get(event.agent_id, 0.5)
+                # Agent moved in same direction as aggregate — herd pressure
+                if (agent_delta > 0.02 and new_aggregate > aggregate) or \
+                   (agent_delta < -0.02 and new_aggregate < aggregate):
+                    if not event.influence_target:  # no explicit message, so this is herd
+                        self.influence_graph.add_influence(
+                            source_id="__aggregate__",
+                            target_id=event.agent_id,
+                            tick=tick_num,
+                            message=f"Aggregate shifted to {new_aggregate:.2f}",
+                            source_stance=aggregate,
+                            target_stance_before=pre_tick_stances.get(event.agent_id, 0.5),
+                            target_stance_after=event.stance,
+                            edge_type="herd_pressure",
+                        )
+
         self.recent_messages = new_messages
 
-        new_aggregate = self._compute_aggregate()
         return TickRecord(
             tick=tick_num,
             events=list(events),
@@ -216,6 +267,7 @@ class SimulationEngine:
             description=self.blueprint.description,
             dynamics=self.blueprint.dynamics,
             spectrum=json.dumps(self.blueprint.stance_spectrum),
+            grounding=self.grounding_context if self.grounding_context else "",
             aggregate_stance=f"{aggregate:.2f}",
             aggregate_label=_stance_to_label(aggregate, self.blueprint.stance_spectrum),
             other_agents=_format_other_agents(agent.id, self.current_stances, self.agents),

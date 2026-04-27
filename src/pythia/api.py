@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -13,7 +14,7 @@ from fastapi.responses import StreamingResponse
 
 from pythia.config import GROQ_API_KEY, GROQ_FAST_MODEL, OLLAMA_BASE_URL, OLLAMA_MODEL, RUNS_DIR
 from pythia.llm import OllamaClient, build_llm_client
-from pythia.models import OracleRequest, SimulateRequest
+from pythia.models import OracleRequest, SimulateRequest, SimulateRequestWithDocs
 from pythia.oracle_loop import run_oracle_loop
 from pythia.orchestrator import run_simulation, stream_simulation
 
@@ -26,13 +27,19 @@ def create_app(
     model: str | None = None,
     runs_dir: str = RUNS_DIR,
 ) -> FastAPI:
-    app = FastAPI(title="Pythia", description="Opinion dynamics simulation engine")
 
-    @app.on_event("startup")
-    async def _startup_banner():
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
         print("\n  ┌─────────────────────────────────────┐")
         print("  │  Pythia ready → http://localhost    │")
         print("  └─────────────────────────────────────┘\n")
+        yield
+
+    app = FastAPI(
+        title="Pythia",
+        description="Opinion dynamics simulation engine",
+        lifespan=lifespan,
+    )
 
     app.add_middleware(
         CORSMiddleware,
@@ -42,7 +49,6 @@ def create_app(
     )
 
     llm = build_llm_client(provider=provider, ollama_url=ollama_url, model=model)
-    # For Groq: use the fast 8b-instant model for high-volume tick calls (6000 RPM vs 30 RPM)
     fast_llm = (
         build_llm_client(provider=provider, ollama_url=ollama_url, model=GROQ_FAST_MODEL)
         if GROQ_API_KEY and provider in (None, "groq") and not model
@@ -62,14 +68,16 @@ def create_app(
         return response
 
     @app.post("/api/simulate/stream")
-    async def simulate_stream(request: SimulateRequest):
+    async def simulate_stream(request: SimulateRequestWithDocs):
         logger.info("Simulate stream request prompt=%r", request.prompt[:60])
 
         async def event_stream():
             try:
                 async for event in stream_simulation(
-                    prompt=request.prompt, context=request.context, llm=llm, runs_dir=runs_dir,
-                    fast_llm=fast_llm,
+                    prompt=request.prompt, context=request.context, llm=llm,
+                    runs_dir=runs_dir, fast_llm=fast_llm,
+                    document_text=request.document_text,
+                    document_name=request.document_name,
                 ):
                     yield f"data: {json.dumps(event)}\n\n"
             except Exception as exc:
@@ -83,13 +91,15 @@ def create_app(
         )
 
     @app.post("/api/simulate")
-    async def simulate(request: SimulateRequest) -> dict:
+    async def simulate(request: SimulateRequestWithDocs) -> dict:
         logger.info("Simulate request prompt=%r", request.prompt[:60])
         result = await run_simulation(
             prompt=request.prompt,
             context=request.context,
             llm=llm,
             runs_dir=runs_dir,
+            document_text=request.document_text,
+            document_name=request.document_name,
         )
         return result.model_dump(mode="json")
 
@@ -102,6 +112,8 @@ def create_app(
             max_runs=request.max_runs,
             llm=llm,
             runs_dir=runs_dir,
+            document_text=request.document_text,
+            document_name=request.document_name,
         )
         return result.model_dump(mode="json")
 
