@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from pythia.config import GROQ_API_KEY, GROQ_FAST_MODEL, OLLAMA_BASE_URL, OLLAMA_MODEL, RUNS_DIR
-from pythia.llm import OllamaClient, build_llm_client
+from pythia.llm import build_llm_client
 from pythia.models import OracleRequest, SimulateRequest, SimulateRequestWithDocs
 from pythia.oracle_loop import run_oracle_loop
 from pythia.orchestrator import run_simulation, stream_simulation

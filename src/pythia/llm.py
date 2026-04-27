@@ -101,6 +101,31 @@ class OllamaClient:
         await self._http.aclose()
 
 
+# --- Provider-aware RPM defaults ---
+# These are conservative defaults based on free-tier limits.
+# Override via GROQ_RPM / OPENAI_RPM env vars if you have higher limits.
+
+_GROQ_RPM_BY_MODEL = {
+    "llama-3.3-70b-versatile": 30,
+    "llama-3.1-70b-versatile": 30,
+    "llama-3.1-8b-instant": 6000,
+    "llama3-8b-8192": 6000,
+    "llama3-70b-8192": 30,
+    "gemma2-9b-it": 30,
+    "mixtral-8x7b-32768": 30,
+}
+_OPENAI_DEFAULT_RPM = 500  # tier-1 default; most paid accounts get 500+
+
+
+def _groq_rpm(model: str) -> int:
+    """Look up Groq RPM for a model, defaulting to 30 (safest)."""
+    import os
+    env_rpm = os.getenv("GROQ_RPM")
+    if env_rpm:
+        return int(env_rpm)
+    return _GROQ_RPM_BY_MODEL.get(model, 30)
+
+
 def build_llm_client(
     provider: str | None = None,
     ollama_url: str | None = None,
@@ -110,6 +135,7 @@ def build_llm_client(
 
     Priority: explicit provider arg > ANTHROPIC_API_KEY > GROQ_API_KEY > OPENAI_API_KEY > Ollama.
     """
+    import os
     from pythia.config import (
         ANTHROPIC_API_KEY, ANTHROPIC_MODEL,
         GROQ_API_KEY, GROQ_BASE_URL, GROQ_MODEL,
@@ -132,18 +158,28 @@ def build_llm_client(
         return AnthropicClient(api_key=ANTHROPIC_API_KEY, model=model or ANTHROPIC_MODEL)
 
     if effective_provider == "groq":
-        from pythia.openai_client import OpenAIClient
+        from pythia.openai_compat_client import OpenAICompatClient
         if not GROQ_API_KEY:
             raise ValueError("GROQ_API_KEY env var is not set")
-        logger.info("LLM provider=groq model=%s", model or GROQ_MODEL)
-        return OpenAIClient(api_key=GROQ_API_KEY, model=model or GROQ_MODEL, base_url=GROQ_BASE_URL)
+        effective_model = model or GROQ_MODEL
+        rpm = _groq_rpm(effective_model)
+        logger.info("LLM provider=groq model=%s rpm=%d", effective_model, rpm)
+        return OpenAICompatClient(
+            api_key=GROQ_API_KEY, model=effective_model,
+            base_url=GROQ_BASE_URL, rpm=rpm, provider_name="groq",
+        )
 
     if effective_provider == "openai":
-        from pythia.openai_client import OpenAIClient
+        from pythia.openai_compat_client import OpenAICompatClient
         if not OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY env var is not set")
-        logger.info("LLM provider=openai model=%s", model or OPENAI_MODEL)
-        return OpenAIClient(api_key=OPENAI_API_KEY, model=model or OPENAI_MODEL)
+        effective_model = model or OPENAI_MODEL
+        rpm = int(os.getenv("OPENAI_RPM", str(_OPENAI_DEFAULT_RPM)))
+        logger.info("LLM provider=openai model=%s rpm=%d", effective_model, rpm)
+        return OpenAICompatClient(
+            api_key=OPENAI_API_KEY, model=effective_model,
+            rpm=rpm, provider_name="openai",
+        )
 
     logger.info("LLM provider=ollama url=%s model=%s", ollama_url or OLLAMA_BASE_URL, model or OLLAMA_MODEL)
     return OllamaClient(base_url=ollama_url or OLLAMA_BASE_URL, model=model or OLLAMA_MODEL)
