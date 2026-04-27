@@ -280,7 +280,16 @@ class SimulationEngine:
         )
 
         raw = await self.llm.generate(prompt=prompt, system=system)
-        action = TickAction.model_validate(raw)
+        try:
+            action = TickAction.model_validate(raw)
+        except Exception as exc:
+            logger.warning(
+                "Agent tick parse failed agent=%s tick=%d error=%s raw=%r — using neutral fallback",
+                agent.name, tick_num, exc, raw,
+            )
+            action = TickAction(stance=previous_stance, action="none",
+                                emotion="confused", reasoning="Failed to parse response",
+                                message="")
 
         delta = action.stance - previous_stance
         logger.info(

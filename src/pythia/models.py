@@ -64,18 +64,27 @@ class Agent(BaseModel):
 # --- Simulation Engine I/O ---
 
 class TickAction(BaseModel):
-    """Raw output from an agent's LLM call for one tick."""
-    stance: float
-    action: str
-    emotion: str
-    reasoning: str
-    message: str
+    """Raw output from an agent's LLM call for one tick.
+
+    All fields have defaults so malformed LLM responses degrade gracefully
+    instead of crashing the simulation.
+    """
+    stance: float | None = None
+    action: str = "none"
+    emotion: str = "neutral"
+    reasoning: str = ""
+    message: str = ""
     influence_target: str | None = None
 
-    @field_validator("stance")
+    @field_validator("stance", mode="before")
     @classmethod
-    def clamp_stance(cls, v: float) -> float:
-        return max(0.0, min(1.0, v))
+    def coerce_stance(cls, v):
+        if v is None:
+            return 0.5  # default to neutral if LLM returns null
+        try:
+            return max(0.0, min(1.0, float(v)))
+        except (TypeError, ValueError):
+            return 0.5
 
 
 class TickEvent(BaseModel):
