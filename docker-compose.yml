@@ -7,7 +7,7 @@ services:
     environment:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
     volumes:
-      - pythia_data:/app/data
+      - ./data:/app/data
     networks:
       - pythia_net
     restart: unless-stopped
@@ -32,7 +32,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  pythia_data:
   ollama_data:
 
 networks:

@@ -25,9 +25,12 @@ ENV/
 data/raw/*
 data/processed/*
 data/ground_truth/*
+data/runs/*.json
+data/logs/
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/ground_truth/.gitkeep
+!data/runs/.gitkeep
 
 # Jupyter
 .ipynb_checkpoints/
