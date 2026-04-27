@@ -1,6 +1,7 @@
-export default function Header({ scenarioName, tick, run, progressPercent, onRestart, paused, onTogglePause }) {
+export default function Header({ scenarioName, tick, run, progressPercent, onRestart, paused, onTogglePause, totalTicks }) {
   const tickStr = String(tick).padStart(2, '0')
   const runStr  = String(run).padStart(2, '0')
+  const totalStr = String(totalTicks || 20).padStart(2, '0')
 
   return (
     <>
@@ -101,7 +102,7 @@ export default function Header({ scenarioName, tick, run, progressPercent, onRes
               letterSpacing: '-0.03em',
               lineHeight: 1,
               marginTop: 2,
-            }}>{tickStr} / 20</div>
+            }}>{tickStr} / {totalStr}</div>
             <div style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 9,

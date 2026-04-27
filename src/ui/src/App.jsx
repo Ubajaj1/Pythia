@@ -140,6 +140,7 @@ function SimulationView({ scenario, sim, decisionSummary, influenceGraph, select
         onRestart={sim.restart}
         paused={sim.paused}
         onTogglePause={sim.togglePause}
+        totalTicks={scenario.tickCount || scenario.ticks?.length || 20}
       />
       <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
         <Stage

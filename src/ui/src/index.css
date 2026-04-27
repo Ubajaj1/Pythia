@@ -2,14 +2,14 @@
   --bg:            #0D0D0B;
   --surface:       #141410;
   --surface-warm:  #16140E;
-  --border:        rgba(255,255,255,0.06);
-  --text-primary:  #6A6762;
-  --text-muted:    #3D3D38;
-  --text-dim:      #1E1E1C;
-  --text-ui:       #6E6A66;
-  --gold:          #A88C52;
-  --gold-dim:      #5E4E28;
-  --gold-ui:       #8A7448;
+  --border:        rgba(255,255,255,0.08);
+  --text-primary:  #B8B4AE;
+  --text-muted:    #6A6862;
+  --text-dim:      #2E2E2A;
+  --text-ui:       #908C86;
+  --gold:          #D4B06A;
+  --gold-dim:      #8A7442;
+  --gold-ui:       #B89A5C;
 
   --font-display: 'Playfair Display', Georgia, serif;
   --font-ui:      'Syne', system-ui, sans-serif;

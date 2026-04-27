@@ -100,6 +100,7 @@ export function scenarioFromRunResult(result) {
     ticks: result.ticks,
     agents: result.agents,
     stanceSpectrum: result.scenario?.stance_spectrum || [],
+    tickCount: result.ticks?.length || 20,
   }
 }
 
@@ -152,5 +153,6 @@ export function scenarioFromOracleResult(oracleResult) {
     agents: firstRun.result.agents,
     coherenceHistory: oracleResult.coherence_history.map(s => Math.round(s * 100)),
     stanceSpectrum: firstRun.result.scenario?.stance_spectrum || [],
+    tickCount: firstRun.result.ticks?.length || 20,
   }
 }
