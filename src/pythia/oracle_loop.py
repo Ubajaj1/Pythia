@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 from pathlib import Path
 
 from pythia.analyzer import analyze_scenario
@@ -16,93 +15,14 @@ from pythia.grounding import extract_grounding, format_grounding_for_prompt
 from pythia.llm import LLMClient
 from pythia.models import (
     Agent,
-    AgentInfo,
-    BiggestShift,
     InfluenceGraph,
     OracleLoopResult,
     OracleRunRecord,
-    RunResult,
-    RunSummary,
-    ScenarioBlueprint,
-    ScenarioInfo,
-    TickRecord,
 )
+from pythia.summary import build_run_result, generate_run_id
 from pythia.temple import amend_agent
 
 logger = logging.getLogger(__name__)
-
-
-def _build_run_result(
-    run_num: int,
-    prompt: str,
-    blueprint: ScenarioBlueprint,
-    agents: list[Agent],
-    ticks: list[TickRecord],
-    runs_dir: str,
-) -> RunResult:
-    """Build and save a RunResult for one oracle run."""
-    now = datetime.now(timezone.utc)
-    run_id = f"oracle_{now.strftime('%Y-%m-%d_%H%M%S')}_r{run_num}"
-
-    agent_infos = [
-        AgentInfo(
-            id=a.id, name=a.name, role=a.role,
-            persona=a.persona, bias=a.bias,
-            initial_stance=a.initial_stance,
-        )
-        for a in agents
-    ]
-
-    total_ticks = len(ticks)
-    final_aggregate = ticks[-1].aggregate_stance if ticks else 0.0
-
-    agent_initial = {a.id: a.initial_stance for a in agents}
-    agent_final: dict[str, float] = {}
-    agent_last_reasoning: dict[str, str] = {}
-    for tick in ticks:
-        for event in tick.events:
-            agent_final[event.agent_id] = event.stance
-            agent_last_reasoning[event.agent_id] = event.reasoning
-
-    biggest_id = max(
-        agent_final,
-        key=lambda aid: abs(agent_final[aid] - agent_initial.get(aid, 0.5)),
-        default="",
-    )
-    final_stances = list(agent_final.values())
-    consensus = (max(final_stances) - min(final_stances)) < 0.15 if final_stances else False
-
-    summary = RunSummary(
-        total_ticks=total_ticks,
-        final_aggregate_stance=round(final_aggregate, 4),
-        biggest_shift=BiggestShift(
-            agent_id=biggest_id,
-            from_stance=round(agent_initial.get(biggest_id, 0.5), 4),
-            to_stance=round(agent_final.get(biggest_id, 0.5), 4),
-            reason=agent_last_reasoning.get(biggest_id, ""),
-        ),
-        consensus_reached=consensus,
-    )
-
-    result = RunResult(
-        run_id=run_id,
-        scenario=ScenarioInfo(
-            input=prompt,
-            type=blueprint.scenario_type,
-            title=blueprint.title,
-            stance_spectrum=blueprint.stance_spectrum,
-        ),
-        agents=agent_infos,
-        ticks=ticks,
-        summary=summary,
-    )
-
-    runs_path = Path(runs_dir)
-    runs_path.mkdir(parents=True, exist_ok=True)
-    (runs_path / f"{run_id}.json").write_text(result.model_dump_json(indent=2, by_alias=True))
-    logger.debug("Run result saved run_id=%s path=%s", run_id, runs_path / f"{run_id}.json")
-
-    return result
 
 
 async def run_oracle_loop(
@@ -126,7 +46,6 @@ async def run_oracle_loop(
     )
 
     # Optional document grounding
-    grounding = None
     grounding_text = ""
     if document_text:
         grounding = await extract_grounding(
@@ -156,7 +75,17 @@ async def run_oracle_loop(
         )
         ticks = await engine.run()
         last_influence_graph = engine.influence_graph
-        run_result = _build_run_result(run_num, prompt, blueprint, agents, ticks, runs_dir)
+
+        # Build result using shared logic (same summary computation as orchestrator)
+        run_id = generate_run_id(prefix="oracle")
+        run_result = build_run_result(prompt, blueprint, agents, ticks, run_id=run_id)
+
+        # Save to disk
+        runs_path = Path(runs_dir)
+        runs_path.mkdir(parents=True, exist_ok=True)
+        (runs_path / f"{run_id}.json").write_text(
+            run_result.model_dump_json(indent=2, by_alias=True)
+        )
 
         evaluations = await evaluate_run(run_result, agents, llm)
         coherence_score = sum(1 for e in evaluations if e.is_coherent) / len(evaluations)

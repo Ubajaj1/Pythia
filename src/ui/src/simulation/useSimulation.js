@@ -280,8 +280,15 @@ export function useStreamingSimulation(scenario, externalTicksRef) {
 
 export function useOracleSimulation(oracleScenario) {
   const sim = useApiSimulation(oracleScenario)
+
+  // Override temple behavior: use real amended agent data instead of random tick-9 selection
+  // Find the first amended agent from the oracle result to show in the temple
+  const amendedIdx = oracleScenario.protagonists.findIndex(p => p.amended)
+
   return {
     ...sim,
     accuracyHistory: oracleScenario.coherenceHistory,
+    // If we have real amendment data, override the random temple selection
+    templeIdx: amendedIdx >= 0 ? amendedIdx : sim.templeIdx,
   }
 }

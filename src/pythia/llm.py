@@ -50,11 +50,23 @@ class OllamaClient:
         if system:
             payload["system"] = system
 
-        t0 = time.perf_counter()
-        response = await self._http.post(
-            f"{self.base_url}/api/generate", json=payload
-        )
-        response.raise_for_status()
+        try:
+            t0 = time.perf_counter()
+            response = await self._http.post(
+                f"{self.base_url}/api/generate", json=payload
+            )
+            response.raise_for_status()
+        except httpx.ConnectError:
+            raise ConnectionError(
+                f"Cannot connect to Ollama at {self.base_url}. "
+                f"Is Ollama running? Start it with: ollama serve"
+            ) from None
+        except httpx.HTTPStatusError as exc:
+            raise RuntimeError(
+                f"Ollama returned HTTP {exc.response.status_code}. "
+                f"Is model '{self.model}' pulled? Try: ollama pull {self.model}"
+            ) from None
+
         raw = response.json()["response"]
         latency_ms = round((time.perf_counter() - t0) * 1000)
 
@@ -70,11 +82,15 @@ class OllamaClient:
                 "Your previous response was not valid JSON. "
                 "Respond with ONLY valid JSON.\n\n" + prompt
             )
-            t0 = time.perf_counter()
-            response = await self._http.post(
-                f"{self.base_url}/api/generate", json=payload
-            )
-            response.raise_for_status()
+            try:
+                t0 = time.perf_counter()
+                response = await self._http.post(
+                    f"{self.base_url}/api/generate", json=payload
+                )
+                response.raise_for_status()
+            except (httpx.ConnectError, httpx.HTTPStatusError) as exc:
+                raise RuntimeError(f"Ollama retry failed: {exc}") from None
+
             raw = response.json()["response"]
             latency_ms = round((time.perf_counter() - t0) * 1000)
             logger.info("LLM retry response latency_ms=%d response_chars=%d", latency_ms, len(raw))
@@ -89,7 +105,7 @@ def build_llm_client(
     provider: str | None = None,
     ollama_url: str | None = None,
     model: str | None = None,
-) -> "OllamaClient":
+) -> LLMClient:
     """Return the right LLM client based on provider arg or env vars.
 
     Priority: explicit provider arg > ANTHROPIC_API_KEY > GROQ_API_KEY > OPENAI_API_KEY > Ollama.
@@ -113,21 +129,21 @@ def build_llm_client(
         if not ANTHROPIC_API_KEY:
             raise ValueError("ANTHROPIC_API_KEY env var is not set")
         logger.info("LLM provider=anthropic model=%s", model or ANTHROPIC_MODEL)
-        return AnthropicClient(api_key=ANTHROPIC_API_KEY, model=model or ANTHROPIC_MODEL)  # type: ignore[return-value]
+        return AnthropicClient(api_key=ANTHROPIC_API_KEY, model=model or ANTHROPIC_MODEL)
 
     if effective_provider == "groq":
         from pythia.openai_client import OpenAIClient
         if not GROQ_API_KEY:
             raise ValueError("GROQ_API_KEY env var is not set")
         logger.info("LLM provider=groq model=%s", model or GROQ_MODEL)
-        return OpenAIClient(api_key=GROQ_API_KEY, model=model or GROQ_MODEL, base_url=GROQ_BASE_URL)  # type: ignore[return-value]
+        return OpenAIClient(api_key=GROQ_API_KEY, model=model or GROQ_MODEL, base_url=GROQ_BASE_URL)
 
     if effective_provider == "openai":
         from pythia.openai_client import OpenAIClient
         if not OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY env var is not set")
         logger.info("LLM provider=openai model=%s", model or OPENAI_MODEL)
-        return OpenAIClient(api_key=OPENAI_API_KEY, model=model or OPENAI_MODEL)  # type: ignore[return-value]
+        return OpenAIClient(api_key=OPENAI_API_KEY, model=model or OPENAI_MODEL)
 
     logger.info("LLM provider=ollama url=%s model=%s", ollama_url or OLLAMA_BASE_URL, model or OLLAMA_MODEL)
     return OllamaClient(base_url=ollama_url or OLLAMA_BASE_URL, model=model or OLLAMA_MODEL)

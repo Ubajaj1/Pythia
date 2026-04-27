@@ -92,3 +92,29 @@ class TestOllamaClient:
         result = await client.generate("prompt")
         assert result == {"recovered": True}
         assert call_count == 2
+
+    async def test_connection_error_gives_clear_message(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("Connection refused")
+
+        transport = httpx.MockTransport(handler)
+        client = OllamaClient(
+            base_url="http://fake:11434",
+            model="test-model",
+            http_client=httpx.AsyncClient(transport=transport),
+        )
+        with pytest.raises(ConnectionError, match="Cannot connect to Ollama"):
+            await client.generate("prompt")
+
+    async def test_http_error_gives_clear_message(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(404, json={"error": "model not found"})
+
+        transport = httpx.MockTransport(handler)
+        client = OllamaClient(
+            base_url="http://fake:11434",
+            model="nonexistent-model",
+            http_client=httpx.AsyncClient(transport=transport),
+        )
+        with pytest.raises(RuntimeError, match="Ollama returned HTTP 404"):
+            await client.generate("prompt")

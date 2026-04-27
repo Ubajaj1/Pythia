@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 from pathlib import Path
 
 from pythia.analyzer import analyze_scenario
@@ -15,64 +14,13 @@ from pythia.grounding import extract_grounding, format_grounding_for_prompt
 from pythia.llm import LLMClient
 from pythia.models import (
     AgentInfo,
-    BiggestShift,
     GroundingContext,
-    RunResult,
     RunResultWithInsights,
-    RunSummary,
     ScenarioInfo,
 )
+from pythia.summary import build_run_result, generate_run_id
 
 logger = logging.getLogger(__name__)
-
-
-def _generate_run_id() -> str:
-    now = datetime.now(timezone.utc)
-    return f"run_{now.strftime('%Y-%m-%d_%H%M%S')}"
-
-
-def _compute_summary(result_partial: dict) -> RunSummary:
-    """Compute run summary from ticks and agents."""
-    ticks = result_partial["ticks"]
-    agents = result_partial["agents"]
-
-    total_ticks = len(ticks)
-    final_aggregate = ticks[-1].aggregate_stance if ticks else 0.0
-
-    agent_initial = {a.id: a.initial_stance for a in agents}
-    agent_final: dict[str, float] = {}
-    agent_last_reasoning: dict[str, str] = {}
-    for tick in ticks:
-        for event in tick.events:
-            agent_final[event.agent_id] = event.stance
-            agent_last_reasoning[event.agent_id] = event.reasoning
-
-    biggest_id = ""
-    biggest_delta = 0.0
-    for aid, final in agent_final.items():
-        initial = agent_initial.get(aid, 0.5)
-        delta = abs(final - initial)
-        if delta > biggest_delta:
-            biggest_delta = delta
-            biggest_id = aid
-
-    initial_val = agent_initial.get(biggest_id, 0.5)
-    final_val = agent_final.get(biggest_id, 0.5)
-
-    final_stances = list(agent_final.values())
-    consensus = (max(final_stances) - min(final_stances)) < 0.15 if final_stances else False
-
-    return RunSummary(
-        total_ticks=total_ticks,
-        final_aggregate_stance=round(final_aggregate, 4),
-        biggest_shift=BiggestShift(
-            agent_id=biggest_id,
-            from_stance=round(initial_val, 4),
-            to_stance=round(final_val, 4),
-            reason=agent_last_reasoning.get(biggest_id, ""),
-        ),
-        consensus_reached=consensus,
-    )
 
 
 async def _maybe_ground(
@@ -155,17 +103,7 @@ async def stream_simulation(
         tick_records.append(tick_record)
         yield {"type": "tick", "data": tick_record.model_dump(mode="json")}
 
-    run_id = _generate_run_id()
-    partial = {"ticks": tick_records, "agents": agents}
-    summary = _compute_summary(partial)
-    result = RunResult(
-        run_id=run_id,
-        scenario=ScenarioInfo(input=prompt, type=blueprint.scenario_type,
-                              title=blueprint.title, stance_spectrum=blueprint.stance_spectrum),
-        agents=agent_infos,
-        ticks=tick_records,
-        summary=summary,
-    )
+    result = build_run_result(prompt, blueprint, agents, tick_records)
 
     # Generate decision summary from influence graph
     decision_summary = await generate_decision_summary(result, engine.influence_graph, llm)
@@ -182,7 +120,7 @@ async def stream_simulation(
 
     runs_path = Path(runs_dir)
     runs_path.mkdir(parents=True, exist_ok=True)
-    (runs_path / f"{run_id}.json").write_text(
+    (runs_path / f"{result.run_id}.json").write_text(
         enriched.model_dump_json(indent=2, by_alias=True)
     )
 
@@ -221,30 +159,8 @@ async def run_simulation(
     )
     ticks = await engine.run()
 
-    # 5. Build result
-    run_id = _generate_run_id()
-    agent_infos = [
-        AgentInfo(
-            id=a.id, name=a.name, role=a.role,
-            persona=a.persona, bias=a.bias,
-            initial_stance=a.initial_stance,
-        )
-        for a in agents
-    ]
-
-    partial = {"ticks": ticks, "agents": agents}
-    summary = _compute_summary(partial)
-
-    result = RunResult(
-        run_id=run_id,
-        scenario=ScenarioInfo(
-            input=prompt, type=blueprint.scenario_type,
-            title=blueprint.title, stance_spectrum=blueprint.stance_spectrum,
-        ),
-        agents=agent_infos,
-        ticks=ticks,
-        summary=summary,
-    )
+    # 5. Build result (shared logic with oracle loop)
+    result = build_run_result(prompt, blueprint, agents, ticks)
 
     # 6. Generate decision summary
     decision_summary = await generate_decision_summary(
@@ -264,7 +180,7 @@ async def run_simulation(
     # 7. Save to disk
     runs_path = Path(runs_dir)
     runs_path.mkdir(parents=True, exist_ok=True)
-    output_file = runs_path / f"{run_id}.json"
+    output_file = runs_path / f"{result.run_id}.json"
     output_file.write_text(enriched.model_dump_json(indent=2, by_alias=True))
 
     return enriched
