@@ -128,22 +128,7 @@ export function useApiSimulation(scenario) {
     })
   }, [state.tick])
 
-  // Temple entry at tick 9
-  useEffect(() => {
-    if (state.tick !== 9 || state.templeIdx !== null) return
-    const active = state.protoStates
-      .map((ps, i) => (ps.spawned && !ps.inTemple ? i : -1))
-      .filter(i => i >= 0)
-    if (active.length === 0) return
-    const idx = active[Math.floor(Math.random() * active.length)]
-    dispatch({ type: 'SEND_TO_TEMPLE', idx })
-  }, [state.tick])
-
-  // Temple exit at tick 16
-  useEffect(() => {
-    if (state.tick !== 16 || state.templeIdx === null) return
-    dispatch({ type: 'RETURN_FROM_TEMPLE' })
-  }, [state.tick])
+  // No fake temple for API single runs — temple only activates in Oracle Loop
 
   // Clear returning flag
   useEffect(() => {
@@ -231,17 +216,7 @@ export function useStreamingSimulation(scenario, externalTicksRef) {
     })
   }, [state.tick])
 
-  useEffect(() => {
-    if (state.tick !== 9 || state.templeIdx !== null) return
-    const active = state.protoStates.map((ps, i) => (ps.spawned && !ps.inTemple ? i : -1)).filter(i => i >= 0)
-    if (!active.length) return
-    dispatch({ type: 'SEND_TO_TEMPLE', idx: active[Math.floor(Math.random() * active.length)] })
-  }, [state.tick])
-
-  useEffect(() => {
-    if (state.tick !== 16 || state.templeIdx === null) return
-    dispatch({ type: 'RETURN_FROM_TEMPLE' })
-  }, [state.tick])
+  // No fake temple for streaming single runs — temple only activates in Oracle Loop
 
   useEffect(() => {
     const returningIdx = state.protoStates.findIndex(ps => ps.returning)

@@ -276,6 +276,42 @@ export default function DecisionPanel({ decisionSummary, stanceSpectrum }) {
               }}>{ds.what_could_change}</div>
             </div>
           )}
+
+          {/* Actionable Takeaways */}
+          {ds.actionable_takeaways?.length > 0 && (
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 8,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: 'var(--gold)',
+                marginBottom: 6,
+              }}>Before You Decide — Do This</div>
+              {ds.actionable_takeaways.map((t, i) => (
+                <div key={i} style={{
+                  display: 'flex',
+                  gap: 8,
+                  padding: '4px 0',
+                  borderBottom: '1px solid rgba(255,255,255,0.02)',
+                }}>
+                  <span style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 9,
+                    color: 'var(--gold)',
+                    flexShrink: 0,
+                  }}>{i + 1}.</span>
+                  <span style={{
+                    fontFamily: 'var(--font-ui)',
+                    fontWeight: 400,
+                    fontSize: 10,
+                    color: 'var(--text-primary)',
+                    lineHeight: 1.6,
+                  }}>{t}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

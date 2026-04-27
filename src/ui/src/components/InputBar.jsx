@@ -4,12 +4,62 @@ import { startDemoStream } from '../simulation/demo'
 const API_BASE = ''
 
 const PRESETS = [
-  { id: 'auto',     label: 'Auto',     desc: 'LLM picks based on scenario complexity' },
-  { id: 'fast',     label: 'Fast',     desc: '4 agents · 8 ticks · ~1 min' },
-  { id: 'balanced', label: 'Balanced', desc: '6 agents · 15 ticks · ~3 min' },
-  { id: 'deep',     label: 'Deep',     desc: '10 agents · 25 ticks · ~8 min' },
-  { id: 'custom',   label: 'Custom',   desc: 'You choose' },
+  { id: 'auto',     label: 'Auto',     desc: 'LLM picks based on scenario complexity', detail: 'The AI analyzes your question and chooses the right number of agents and rounds. Simple decisions get fewer agents, complex scenarios get more.' },
+  { id: 'fast',     label: 'Fast',     desc: '4 agents · 8 ticks',  detail: '4 agents, 8 rounds of deliberation. Best for quick gut checks and testing. ~1 min with cloud API.' },
+  { id: 'balanced', label: 'Balanced', desc: '6 agents · 15 ticks', detail: '6 agents, 15 rounds of deliberation. Good balance of depth and speed. ~3 min with cloud API.' },
+  { id: 'deep',     label: 'Deep',     desc: '10 agents · 25 ticks', detail: '10 agents, 25 rounds of deliberation. Most thorough analysis. ~8 min with cloud API.' },
+  { id: 'custom',   label: 'Custom',   desc: 'You choose',          detail: 'Set exact agent count (3-15) and tick count (5-50). More agents = more perspectives. More ticks = more deliberation time.' },
 ]
+
+function PresetButton({ p, isActive, onClick, isLoading }) {
+  const [showTip, setShowTip] = useState(false)
+  const mono = { fontFamily: 'JetBrains Mono, monospace' }
+
+  return (
+    <div style={{ position: 'relative' }}
+      onMouseEnter={() => setShowTip(true)}
+      onMouseLeave={() => setShowTip(false)}
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={isLoading}
+        style={{
+          ...mono,
+          fontSize: 9,
+          padding: '3px 10px',
+          borderRadius: 2,
+          border: isActive ? '1px solid #A88C52' : '1px solid #2a2a25',
+          background: isActive ? 'rgba(168,140,82,0.1)' : 'transparent',
+          color: isActive ? '#A88C52' : '#4a4a44',
+          cursor: isLoading ? 'wait' : 'pointer',
+          opacity: isLoading ? 0.4 : 1,
+        }}
+      >
+        {p.label}
+      </button>
+      {showTip && (
+        <div style={{
+          position: 'absolute',
+          bottom: '100%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 200,
+          background: '#1a1a17',
+          border: '1px solid #2a2a25',
+          padding: '8px 10px',
+          borderRadius: 3,
+          zIndex: 50,
+          pointerEvents: 'none',
+          marginBottom: 6,
+        }}>
+          <div style={{ ...mono, fontSize: 9, color: '#A88C52', marginBottom: 4 }}>{p.desc}</div>
+          <div style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, color: '#6a6a5a', lineHeight: 1.5 }}>{p.detail}</div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function SettingsRow({ preset, setPreset, agentCount, setAgentCount, tickCount, setTickCount, isLoading }) {
   const mono = { fontFamily: 'JetBrains Mono, monospace' }
@@ -29,26 +79,13 @@ function SettingsRow({ preset, setPreset, agentCount, setAgentCount, tickCount, 
       </span>
 
       {PRESETS.map(p => (
-        <button
+        <PresetButton
           key={p.id}
-          type="button"
+          p={p}
+          isActive={preset === p.id}
           onClick={() => setPreset(p.id)}
-          disabled={isLoading}
-          title={p.desc}
-          style={{
-            ...mono,
-            fontSize: 9,
-            padding: '3px 10px',
-            borderRadius: 2,
-            border: preset === p.id ? '1px solid #A88C52' : '1px solid #2a2a25',
-            background: preset === p.id ? 'rgba(168,140,82,0.1)' : 'transparent',
-            color: preset === p.id ? '#A88C52' : '#4a4a44',
-            cursor: isLoading ? 'wait' : 'pointer',
-            opacity: isLoading ? 0.4 : 1,
-          }}
-        >
-          {p.label}
-        </button>
+          isLoading={isLoading}
+        />
       ))}
 
       {isCustom && (

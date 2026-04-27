@@ -21,16 +21,20 @@ and influence data, produce a human-readable decision summary.
 You are NOT making the decision for the user. You are translating what the simulation revealed
 into clear, actionable language so the user can make an informed choice.
 
+CRITICAL: The user came here because they have a real decision to make. Generic summaries like
+"the panel leans toward X" are useless. Be SPECIFIC about what the user should DO next.
+
 Your output MUST be a JSON object with:
-- verdict: string — one sentence describing where the panel landed (e.g. "The panel leans toward raising a Series A, but with significant reservations about timing")
+- verdict: string — one sentence describing where the panel landed AND what it means for the user's specific decision (e.g. "The panel favors raising a Series A now, primarily driven by competitive pressure — but the strongest dissent came from burn rate concerns that were never resolved")
 - confidence: string — one of "high", "moderate", "low", "polarized"
-- confidence_rationale: string — one sentence explaining why (e.g. "4 of 5 agents converged, but the dissenter raised an unaddressed risk")
+- confidence_rationale: string — one sentence explaining why (e.g. "4 of 5 agents converged, but the dissenter raised an unaddressed risk about burn rate")
 - arguments_for: array of objects with agent_name, agent_role, position, reasoning — the 2-3 strongest arguments toward the high end of the stance spectrum
 - arguments_against: array of objects with agent_name, agent_role, position, reasoning — the 2-3 strongest arguments toward the low end
-- key_risk: string — the single most important risk or blind spot the simulation revealed
-- what_could_change: string — conditions under which the minority position would become the majority
-- influence_narrative: string — 2-3 sentences describing the key influence dynamics (who moved whom and why)
-- herd_moments: array of strings — 0-3 moments where group dynamics dominated individual reasoning"""
+- key_risk: string — the single most important risk or blind spot the simulation revealed. Be specific — name the risk, who raised it, and why it matters.
+- what_could_change: string — specific conditions that would flip the outcome (e.g. "If burn rate were cut 30%, the conservative advisor would likely shift to support")
+- actionable_takeaways: array of 2-4 strings — specific things the user should DO or INVESTIGATE before making this decision. Not vague advice. Examples: "Get a concrete burn rate projection for the next 18 months", "Talk to 2-3 founders who raised in similar market conditions", "Run the numbers on bootstrapped growth to 1M ARR as a comparison point"
+- influence_narrative: string — 2-3 sentences describing the key influence dynamics (who moved whom and why, and what that reveals about the decision)
+- herd_moments: array of strings — 0-3 moments where group dynamics dominated individual reasoning (these are WARNING signs — the group may have converged for social reasons, not logical ones)"""
 
 
 def _build_decision_prompt(result: RunResult, graph: InfluenceGraph) -> str:
@@ -120,6 +124,12 @@ async def generate_decision_summary(
         if isinstance(m, str):
             herd_moments.append(m)
 
+    # Parse actionable takeaways
+    takeaways = []
+    for t in raw.get("actionable_takeaways", []):
+        if isinstance(t, str):
+            takeaways.append(t)
+
     summary = DecisionSummary(
         verdict=str(raw.get("verdict", "The simulation did not reach a clear conclusion.")),
         verdict_stance=result.summary.final_aggregate_stance,
@@ -129,6 +139,7 @@ async def generate_decision_summary(
         arguments_against=_parse_args(raw.get("arguments_against", [])),
         key_risk=str(raw.get("key_risk", "")),
         what_could_change=str(raw.get("what_could_change", "")),
+        actionable_takeaways=takeaways,
         influence_narrative=str(raw.get("influence_narrative", "")),
         herd_moments=herd_moments,
     )

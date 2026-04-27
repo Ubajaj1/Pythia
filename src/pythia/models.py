@@ -286,16 +286,17 @@ class KeyArgument(BaseModel):
 
 class DecisionSummary(BaseModel):
     """Human-readable interpretation of what the simulation means for the user's decision."""
-    verdict: str  # e.g. "The panel leans toward raising a Series A"
-    verdict_stance: float  # 0.0-1.0 final aggregate mapped to spectrum
+    verdict: str
+    verdict_stance: float
     confidence: str  # "high", "moderate", "low", "polarized"
-    confidence_rationale: str  # why this confidence level
-    arguments_for: list[KeyArgument]  # strongest arguments toward high end of spectrum
-    arguments_against: list[KeyArgument]  # strongest arguments toward low end
-    key_risk: str  # the most important risk or dissenting insight
-    what_could_change: str  # conditions that would flip the outcome
-    influence_narrative: str  # plain English: who influenced whom and why
-    herd_moments: list[str]  # descriptions of moments where group dynamics dominated
+    confidence_rationale: str
+    arguments_for: list[KeyArgument]
+    arguments_against: list[KeyArgument]
+    key_risk: str
+    what_could_change: str
+    actionable_takeaways: list[str] = Field(default_factory=list)  # specific next steps for the user
+    influence_narrative: str
+    herd_moments: list[str]
 
 
 # --- Extended Run Result ---

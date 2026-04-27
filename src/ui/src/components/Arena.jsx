@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 
 const C_REST   = [58,  58,  56]
 const C_ACTIVE = [200, 194, 185]
@@ -35,6 +35,7 @@ export default function Arena({ crowdStateIndex, crowdStateName, aggregateStance
   const canvasRef  = useRef(null)
   const stateRef   = useRef({ particles: [], crowdStateIndex: 0, aggregateStance: 0.5 })
   const rafRef     = useRef(null)
+  const [showLegend, setShowLegend] = useState(false)
 
   useEffect(() => {
     stateRef.current.crowdStateIndex = crowdStateIndex
@@ -143,6 +144,76 @@ export default function Arena({ crowdStateIndex, crowdStateName, aggregateStance
           </span>
         )}
       </div>
+
+      {/* Info button */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 10,
+          right: 10,
+          cursor: 'pointer',
+          zIndex: 5,
+        }}
+        onClick={() => setShowLegend(s => !s)}
+      >
+        <span style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 10,
+          color: 'var(--gold-dim)',
+          opacity: 0.6,
+        }}>ⓘ</span>
+      </div>
+
+      {/* Legend overlay */}
+      {showLegend && (
+        <div style={{
+          position: 'absolute',
+          top: 28,
+          right: 10,
+          width: 220,
+          background: 'rgba(13,13,11,0.95)',
+          border: '1px solid #2a2a25',
+          borderRadius: 3,
+          padding: '10px 12px',
+          zIndex: 10,
+          pointerEvents: 'auto',
+        }}>
+          <div style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 8,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            color: 'var(--gold-ui)',
+            marginBottom: 8,
+          }}>Crowd Dynamics</div>
+          <div style={{ fontFamily: 'var(--font-ui)', fontSize: 9, color: 'var(--text-ui)', lineHeight: 1.7 }}>
+            Each particle represents a segment of the broader population affected by this decision.
+          </div>
+          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgb(160,72,60)' }} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)' }}>
+                Red — crowd leans against (bearish/oppose)
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgb(200,194,185)' }} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)' }}>
+                Neutral — undecided / balanced
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgb(106,155,106)' }} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)' }}>
+                Green — crowd leans for (bullish/support)
+              </span>
+            </div>
+          </div>
+          <div style={{ marginTop: 8, fontFamily: 'var(--font-ui)', fontSize: 8, color: '#3a3a35', lineHeight: 1.6 }}>
+            Clustering = consensus forming. Scattering = polarization. Speed = intensity of debate.
+          </div>
+        </div>
+      )}
     </div>
   )
 }
