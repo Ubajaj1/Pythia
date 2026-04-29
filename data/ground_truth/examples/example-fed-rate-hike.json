@@ -1,0 +1,12 @@
+{
+  "case_id": "fed-rate-hike-2024-03",
+  "domain": "earnings",
+  "description": "Fed raised rates 50bps in March 2024. Market initially dropped but recovered within a week. Net effect was mildly negative.",
+  "prompt": "The Federal Reserve just raised interest rates by 50 basis points. How will the stock market react over the next week?",
+  "context": "Current S&P 500 is at all-time highs. Inflation is at 3.2%, down from 4.1% six months ago. Unemployment is 3.7%.",
+  "ground_truth_outcome": {
+    "aggregate_stance": 0.35,
+    "confidence": "moderate",
+    "notes": "S&P 500 dropped 2.1% on announcement day, recovered 1.4% over the following 4 days. Net -0.7% for the week. Mildly bearish outcome."
+  }
+}

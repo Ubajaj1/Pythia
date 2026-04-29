@@ -30,11 +30,13 @@ class AnthropicClient:
         self.model = model
         self._http = http_client or httpx.AsyncClient(timeout=120.0)
 
-    async def generate(self, prompt: str, system: str | None = None) -> dict:
+    async def generate(self, prompt: str, system: str | None = None, seed: int | None = None) -> dict:
         logger.info(
-            "LLM call provider=anthropic model=%s prompt_chars=%d has_system=%s",
-            self.model, len(prompt), system is not None,
+            "LLM call provider=anthropic model=%s prompt_chars=%d has_system=%s seed=%s",
+            self.model, len(prompt), system is not None, seed,
         )
+        if seed is not None:
+            logger.debug("Anthropic does not support seed parameter — ignoring seed=%d", seed)
         logger.debug("LLM system:\n%s", system or "(none)")
         logger.debug("LLM prompt:\n%s", prompt)
 

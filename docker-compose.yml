@@ -6,6 +6,8 @@ services:
         required: false
     environment:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+    ports:
+      - "8000:8000"
     volumes:
       - ./data:/app/data
     networks:

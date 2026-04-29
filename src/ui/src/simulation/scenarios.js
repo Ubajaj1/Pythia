@@ -156,3 +156,34 @@ export function scenarioFromOracleResult(oracleResult) {
     tickCount: firstRun.result.ticks?.length || 20,
   }
 }
+
+export function scenarioFromEnsembleResult(ensembleResult) {
+  // Use the primary run for animation — the first run
+  const primaryRun = ensembleResult.primary_run || ensembleResult.runs?.[0]
+  if (!primaryRun) {
+    throw new Error('Ensemble result contains no runs')
+  }
+
+  const protagonists = primaryRun.agents.map((agent, i) => ({
+    id: agent.id,
+    name: agent.name,
+    trait: agent.bias,
+    color: AGENT_COLORS[i % AGENT_COLORS.length].color,
+    glow: AGENT_COLORS[i % AGENT_COLORS.length].glow,
+  }))
+
+  const amendments = primaryRun.agents.map(agent => [
+    'Recalibrating',
+    `${agent.bias} parameters...`,
+  ])
+
+  return {
+    name: primaryRun.scenario.title,
+    protagonists,
+    amendments,
+    ticks: primaryRun.ticks,
+    agents: primaryRun.agents,
+    stanceSpectrum: primaryRun.scenario?.stance_spectrum || [],
+    tickCount: primaryRun.ticks?.length || 20,
+  }
+}

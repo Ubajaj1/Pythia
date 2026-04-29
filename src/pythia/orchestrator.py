@@ -18,7 +18,7 @@ from pythia.models import (
     RunResultWithInsights,
     ScenarioInfo,
 )
-from pythia.summary import build_run_result, generate_run_id
+from pythia.summary import build_methodology, build_run_result, generate_run_id
 
 logger = logging.getLogger(__name__)
 
@@ -100,8 +100,11 @@ async def stream_simulation(
 
     agents = await generate_agents(blueprint, llm=llm)
     agent_infos = [
-        AgentInfo(id=a.id, name=a.name, role=a.role, persona=a.persona,
-                  bias=a.bias, initial_stance=a.initial_stance)
+        AgentInfo(
+            id=a.id, name=a.name, role=a.role, persona=a.persona,
+            bias=a.bias, bias_strength=a.bias_strength,
+            initial_stance=a.initial_stance,
+        )
         for a in agents
     ]
     yield {
@@ -127,7 +130,9 @@ async def stream_simulation(
     result = build_run_result(prompt, blueprint, agents, tick_records)
 
     # Generate decision summary from influence graph
-    decision_summary = await generate_decision_summary(result, engine.influence_graph, llm)
+    decision_summary = await generate_decision_summary(
+        result, engine.influence_graph, llm, has_grounding=bool(grounding),
+    )
 
     enriched = RunResultWithInsights(
         run_id=result.run_id,
@@ -137,6 +142,12 @@ async def stream_simulation(
         summary=result.summary,
         influence_graph=engine.influence_graph,
         decision_summary=decision_summary,
+        methodology=build_methodology(
+            agents=agents,
+            blueprint=blueprint,
+            llm_provider=getattr(llm, 'provider_name', getattr(llm, 'model', 'unknown')),
+            llm_model=getattr(llm, 'model', 'unknown'),
+        ),
     )
 
     runs_path = Path(runs_dir)
@@ -191,7 +202,7 @@ async def run_simulation(
 
     # 6. Generate decision summary
     decision_summary = await generate_decision_summary(
-        result, engine.influence_graph, llm,
+        result, engine.influence_graph, llm, has_grounding=bool(grounding),
     )
 
     enriched = RunResultWithInsights(
@@ -202,6 +213,12 @@ async def run_simulation(
         summary=result.summary,
         influence_graph=engine.influence_graph,
         decision_summary=decision_summary,
+        methodology=build_methodology(
+            agents=agents,
+            blueprint=blueprint,
+            llm_provider=getattr(llm, 'provider_name', getattr(llm, 'model', 'unknown')),
+            llm_model=getattr(llm, 'model', 'unknown'),
+        ),
     )
 
     # 7. Save to disk

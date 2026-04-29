@@ -84,6 +84,7 @@ def build_run_result(
         AgentInfo(
             id=a.id, name=a.name, role=a.role,
             persona=a.persona, bias=a.bias,
+            bias_strength=getattr(a, 'bias_strength', 0.5),
             initial_stance=a.initial_stance,
         )
         for a in agents
@@ -102,4 +103,51 @@ def build_run_result(
         agents=agent_infos,
         ticks=ticks,
         summary=summary,
+    )
+
+
+def build_methodology(
+    agents: list[Agent],
+    blueprint: ScenarioBlueprint,
+    seed: int | None = None,
+    ensemble_size: int = 1,
+    llm_provider: str = "unknown",
+    llm_model: str = "unknown",
+) -> "SimulationMethodology":
+    """Build methodology metadata for 'The Oracle's Method' panel."""
+    from pythia.models import SimulationMethodology
+    from pythia.confidence import (
+        AGREEMENT_CLUSTERED_MAX,
+        AGREEMENT_MIXED_MAX,
+        CONVICTION_TEPID_MAX,
+        CONVICTION_MODERATE_MAX,
+    )
+
+    # Count agents per role
+    role_counts: dict[str, int] = {}
+    for a in agents:
+        role_counts[a.role] = role_counts.get(a.role, 0) + 1
+
+    # Map agent IDs to bias names
+    from pythia.biases import BIAS_CATALOG
+    biases = {}
+    for a in agents:
+        entry = BIAS_CATALOG.get(a.bias)
+        biases[a.id] = entry.name if entry else a.bias
+
+    return SimulationMethodology(
+        agent_count=len(agents),
+        tick_count=blueprint.tick_count,
+        agents_per_role=role_counts,
+        biases_assigned=biases,
+        ensemble_size=ensemble_size,
+        seed=seed,
+        confidence_thresholds={
+            "agreement_clustered_max": AGREEMENT_CLUSTERED_MAX,
+            "agreement_mixed_max": AGREEMENT_MIXED_MAX,
+            "conviction_tepid_max": CONVICTION_TEPID_MAX,
+            "conviction_moderate_max": CONVICTION_MODERATE_MAX,
+        },
+        llm_provider=llm_provider,
+        llm_model=llm_model,
     )

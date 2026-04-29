@@ -18,12 +18,12 @@ function TypewriterText({ lines }) {
   return (
     <div style={{
       fontFamily: 'var(--font-mono)',
-      fontSize: 8.5,
-      color: 'var(--text-muted)',
+      fontSize: 9,
+      color: '#FFFFFF',
       textAlign: 'center',
-      lineHeight: 1.9,
+      lineHeight: 1.85,
       letterSpacing: '0.02em',
-      minHeight: 36,
+      minHeight: 38,
     }}>{displayed}</div>
   )
 }
@@ -37,7 +37,7 @@ export default function Temple({ protagonist, amendment }) {
       flexShrink: 0,
       borderLeft: '1px solid var(--border)',
       background: 'var(--surface-warm)',
-      padding: '20px 16px',
+      padding: '18px 14px',
       position: 'relative',
       overflow: 'hidden',
       display: 'flex',
@@ -57,11 +57,11 @@ export default function Temple({ protagonist, amendment }) {
 
       <div style={{
         fontFamily: 'var(--font-mono)',
-        fontSize: 8,
+        fontSize: 9,
         letterSpacing: '0.18em',
         textTransform: 'uppercase',
-        color: 'var(--gold-ui)',
-        marginBottom: 18,
+        color: 'var(--gold)',
+        marginBottom: 16,
         flexShrink: 0,
       }}>// Temple of Learning</div>
 
@@ -78,16 +78,16 @@ export default function Temple({ protagonist, amendment }) {
         position: active ? 'absolute' : 'relative',
         pointerEvents: 'none',
       }}>
-        <div style={{ width: 24, height: 1, background: 'var(--text-muted)' }} />
+        <div style={{ width: 22, height: 1, background: '#FFFFFF' }} />
         <div style={{
           fontFamily: 'var(--font-display)',
           fontStyle: 'italic',
-          fontSize: 11,
-          color: 'var(--text-ui)',
+          fontSize: 12,
+          color: '#FFFFFF',
           textAlign: 'center',
           lineHeight: 1.8,
         }}>The oracle<br />awaits the<br />fallen</div>
-        <div style={{ width: 24, height: 1, background: 'var(--text-muted)' }} />
+        <div style={{ width: 22, height: 1, background: '#FFFFFF' }} />
       </div>
 
       {/* Active */}
@@ -125,7 +125,7 @@ export default function Temple({ protagonist, amendment }) {
             <div style={{
               fontFamily: 'var(--font-ui)',
               fontWeight: 500,
-              fontSize: 11,
+              fontSize: 12,
               color: 'var(--gold)',
               letterSpacing: '0.02em',
             }}>{protagonist.name}</div>

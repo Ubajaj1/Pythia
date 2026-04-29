@@ -138,6 +138,7 @@ async def run_oracle_loop(
         final_result = run_records[-1].result
         decision_summary = await generate_decision_summary(
             final_result, last_influence_graph, llm,
+            has_grounding=bool(document_text),
         )
 
     final_coherence = run_records[-1].coherence_score if run_records else 0.0

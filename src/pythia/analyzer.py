@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from pythia.biases import resolve_bias
 from pythia.llm import LLMClient
 from pythia.models import ScenarioBlueprint
 
@@ -118,6 +119,15 @@ async def analyze_scenario(
     system = _build_system_prompt(agent_count=agent_count, tick_count=tick_count)
     raw = await llm.generate(prompt=user_prompt, system=system)
     blueprint = ScenarioBlueprint.model_validate(raw)
+
+    # Resolve archetype biases through the catalog — never let freeform strings through
+    updated_archetypes = []
+    for arch in blueprint.agent_archetypes:
+        canonical = resolve_bias(arch.bias)
+        if canonical != arch.bias:
+            logger.info("Resolved archetype bias %r → %s for role %s", arch.bias, canonical, arch.role)
+        updated_archetypes.append(arch.model_copy(update={"bias": canonical}))
+    blueprint = blueprint.model_copy(update={"agent_archetypes": updated_archetypes})
 
     # Override tick_count if user specified it (in case LLM didn't follow instructions)
     if tick_count and blueprint.tick_count != tick_count:

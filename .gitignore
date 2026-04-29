@@ -30,6 +30,8 @@ data/logs/
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/ground_truth/.gitkeep
+!data/ground_truth/examples/
+!data/ground_truth/examples/**
 !data/runs/.gitkeep
 
 # Jupyter

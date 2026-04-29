@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 
+from pythia.biases import BIAS_CATALOG, resolve_bias
 from pythia.llm import LLMClient
 from pythia.models import Agent, AgentArchetype, Relationship, ScenarioBlueprint
 
@@ -19,11 +20,13 @@ Your output MUST be a JSON object with an "agents" key containing an array. Each
 - name: string — a memorable character name
 - role: string — matches the archetype role
 - persona: string — 1-2 sentences describing personality, background, motivations (~50 words max)
-- bias: string — the cognitive bias from the archetype
+- bias: string — a cognitive bias from the suggested list (each agent in the same archetype should ideally have a DIFFERENT bias to avoid echo chambers)
+- bias_strength: float — 0.0 to 1.0, how strongly this bias shapes their thinking (0.3 = mild, 0.5 = moderate, 0.8 = strong). Base this on persona cues — a rigid, set-in-their-ways character should have high strength; an open-minded one should have low strength.
 - initial_stance: float — between {stance_low} and {stance_high}
 - behavioral_rules: array of 2-4 short strings describing how this agent behaves
 
-Make each agent distinct and memorable. Give them human-like personalities."""
+Make each agent distinct and memorable. Give them human-like personalities.
+When generating multiple agents for the same archetype, vary their biases and strengths to avoid echo chambers."""
 
 PASS2_SYSTEM = """\
 You are assigning relationships between simulation agents. Given all agents, create a relationship graph.
@@ -57,28 +60,44 @@ async def _generate_for_archetype(
         f"Stance spectrum: {json.dumps(blueprint.stance_spectrum)}\n\n"
         f"Archetype: {archetype.role}\n"
         f"Description: {archetype.description}\n"
-        f"Bias: {archetype.bias}\n"
+        f"Primary bias: {archetype.bias}\n"
+        f"Suggested biases (pick one per agent, vary across agents): "
+        f"{json.dumps(archetype.suggested_biases) if archetype.suggested_biases else json.dumps([archetype.bias])}\n"
         f"Stance range: {archetype.stance_range[0]} to {archetype.stance_range[1]}\n"
         f"Count: {archetype.count}\n\n"
-        f"Generate {archetype.count} agent(s)."
+        f"Generate {archetype.count} agent(s). If generating multiple agents, give each a DIFFERENT bias from the suggested list."
     )
     logger.debug("Generator pass1 prompt archetype=%s:\n%s", archetype.role, prompt)
 
     raw = await llm.generate(prompt=prompt, system=system)
     agents_data = raw.get("agents", [])
-    agents = [
-        Agent(
+    agents = []
+    for a in agents_data:
+        # Resolve bias through the catalog — never let a freeform string through
+        raw_bias = a.get("bias", archetype.bias)
+        canonical_bias = resolve_bias(raw_bias)
+        if canonical_bias != raw_bias:
+            logger.info(
+                "Resolved agent bias %r → %s for agent %s",
+                raw_bias, canonical_bias, a.get("name", "?"),
+            )
+        # Clamp bias_strength to [0.0, 1.0], default 0.5
+        raw_strength = a.get("bias_strength", 0.5)
+        try:
+            strength = max(0.0, min(1.0, float(raw_strength)))
+        except (TypeError, ValueError):
+            strength = 0.5
+        agents.append(Agent(
             id=a["id"],
             name=a["name"],
             role=a["role"],
             persona=a["persona"],
-            bias=a["bias"],
+            bias=canonical_bias,
+            bias_strength=strength,
             initial_stance=a["initial_stance"],
             behavioral_rules=a["behavioral_rules"],
             relationships=[],
-        )
-        for a in agents_data
-    ]
+        ))
     logger.info(
         "Archetype generated role=%s agents=%s stances=%s",
         archetype.role,
@@ -133,6 +152,33 @@ def _check_diversity(agents: list[Agent], min_spread: float = 0.6) -> bool:
     return (max(stances) - min(stances)) >= min_spread
 
 
+def _dedupe_agent_names(agents: list[Agent]) -> list[Agent]:
+    """Suffix duplicate agent names with their role.
+
+    Two agents with the same name (e.g. two 'Alex Chen' across archetypes) break
+    _resolve_influence_target's name-based fuzzy matching — any reference is
+    ambiguous. Suffixing with the role keeps names human-readable while making
+    them unique.
+    """
+    name_counts: dict[str, int] = {}
+    for a in agents:
+        name_counts[a.name] = name_counts.get(a.name, 0) + 1
+
+    duplicates = {n for n, c in name_counts.items() if c > 1}
+    if not duplicates:
+        return agents
+
+    logger.info("Deduplicating %d duplicate agent name(s): %s", len(duplicates), duplicates)
+    updated = []
+    for a in agents:
+        if a.name in duplicates:
+            new_name = f"{a.name} ({a.role.title()})"
+            updated.append(a.model_copy(update={"name": new_name}))
+        else:
+            updated.append(a)
+    return updated
+
+
 async def generate_agents(
     blueprint: ScenarioBlueprint,
     llm: LLMClient,
@@ -147,6 +193,12 @@ async def generate_agents(
     ]
     results = await asyncio.gather(*tasks)
     agents = [agent for group in results for agent in group]
+
+    # Deduplicate agent names across archetypes.
+    # Two agents with identical names (e.g. "Alex Chen" as founder AND investor)
+    # break name-based fuzzy matching in _resolve_influence_target. Suffix
+    # duplicates with their role so every name is unique.
+    agents = _dedupe_agent_names(agents)
 
     # Diversity check: if stances are too clustered, regenerate the most extreme archetype
     if not _check_diversity(agents) and len(blueprint.agent_archetypes) > 1:

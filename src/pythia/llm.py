@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class LLMClient(Protocol):
     """Protocol for LLM backends. Implement generate() to swap providers."""
 
-    async def generate(self, prompt: str, system: str | None = None) -> dict: ...
+    async def generate(self, prompt: str, system: str | None = None, seed: int | None = None) -> dict: ...
 
 
 class OllamaClient:
@@ -33,10 +33,10 @@ class OllamaClient:
         self.model = model
         self._http = http_client or httpx.AsyncClient(timeout=120.0)
 
-    async def generate(self, prompt: str, system: str | None = None) -> dict:
+    async def generate(self, prompt: str, system: str | None = None, seed: int | None = None) -> dict:
         logger.info(
-            "LLM call model=%s prompt_chars=%d has_system=%s",
-            self.model, len(prompt), system is not None,
+            "LLM call model=%s prompt_chars=%d has_system=%s seed=%s",
+            self.model, len(prompt), system is not None, seed,
         )
         logger.debug("LLM system:\n%s", system or "(none)")
         logger.debug("LLM prompt:\n%s", prompt)
@@ -49,6 +49,9 @@ class OllamaClient:
         }
         if system:
             payload["system"] = system
+        if seed is not None:
+            # Ollama supports seed via the options object
+            payload["options"] = {"seed": seed}
 
         try:
             t0 = time.perf_counter()

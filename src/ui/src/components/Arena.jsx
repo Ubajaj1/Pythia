@@ -131,16 +131,21 @@ export default function Arena({ crowdStateIndex, crowdStateName, aggregateStance
         left: 0, right: 0,
         textAlign: 'center',
         fontFamily: 'var(--font-mono)',
-        fontSize: 8.5,
+        fontSize: 11,
         letterSpacing: '0.16em',
         textTransform: 'uppercase',
-        color: 'var(--text-ui)',
+        color: '#FFFFFF',
         pointerEvents: 'none',
+        lineHeight: 1.5,
+        textShadow: '0 1px 4px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.85)',
       }}>
-        {crowdStateName}
+        <span style={{ color: '#FFFFFF' }}>Crowd:</span> {crowdStateName}
         {aggregateStance != null && (
-          <span style={{ marginLeft: 8, color: 'var(--gold-dim)' }}>
-            · {(aggregateStance * 100).toFixed(0)}%
+          <span style={{ marginLeft: 14 }}>
+            <span style={{ color: '#FFFFFF' }}>Stance:</span>{' '}
+            <span style={{ color: 'var(--gold)' }}>
+              {aggregateStance.toFixed(2)}
+            </span>
           </span>
         )}
       </div>
@@ -153,14 +158,15 @@ export default function Arena({ crowdStateIndex, crowdStateName, aggregateStance
           right: 10,
           cursor: 'pointer',
           zIndex: 5,
+          padding: '4px 8px',
         }}
         onClick={() => setShowLegend(s => !s)}
       >
         <span style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: 10,
-          color: 'var(--gold-dim)',
-          opacity: 0.6,
+          fontSize: 13,
+          color: 'var(--gold)',
+          opacity: 1,
         }}>ⓘ</span>
       </div>
 
@@ -168,49 +174,56 @@ export default function Arena({ crowdStateIndex, crowdStateName, aggregateStance
       {showLegend && (
         <div style={{
           position: 'absolute',
-          top: 28,
+          top: 32,
           right: 10,
-          width: 220,
-          background: 'rgba(13,13,11,0.95)',
-          border: '1px solid #2a2a25',
-          borderRadius: 3,
-          padding: '10px 12px',
+          width: 230,
+          background: 'rgba(13,13,11,0.97)',
+          border: '1px solid #6a6a60',
+          borderRadius: 4,
+          padding: '11px 13px',
           zIndex: 10,
           pointerEvents: 'auto',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
         }}>
           <div style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: 8,
-            letterSpacing: '0.1em',
+            fontSize: 10,
+            letterSpacing: '0.12em',
             textTransform: 'uppercase',
-            color: 'var(--gold-ui)',
-            marginBottom: 8,
+            color: 'var(--gold)',
+            marginBottom: 7,
+            lineHeight: 1.5,
           }}>Crowd Dynamics</div>
-          <div style={{ fontFamily: 'var(--font-ui)', fontSize: 9, color: 'var(--text-ui)', lineHeight: 1.7 }}>
-            Each particle represents a segment of the broader population affected by this decision.
+          <div style={{
+            fontFamily: 'var(--font-ui)',
+            fontSize: 11,
+            color: '#FFFFFF',
+            lineHeight: 1.55,
+          }}>
+            Each particle = a segment of the population this decision affects.
           </div>
-          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgb(160,72,60)' }} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)' }}>
-                Red — crowd leans against (bearish/oppose)
+          <div style={{ marginTop: 9, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 9, height: 9, borderRadius: '50%', background: 'rgb(160,72,60)', flexShrink: 0 }} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#FFFFFF', lineHeight: 1.5 }}>
+                Red — leans against
               </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgb(200,194,185)' }} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)' }}>
-                Neutral — undecided / balanced
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 9, height: 9, borderRadius: '50%', background: 'rgb(200,194,185)', flexShrink: 0 }} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#FFFFFF', lineHeight: 1.5 }}>
+                Neutral — undecided
               </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgb(106,155,106)' }} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)' }}>
-                Green — crowd leans for (bullish/support)
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 9, height: 9, borderRadius: '50%', background: 'rgb(106,155,106)', flexShrink: 0 }} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#FFFFFF', lineHeight: 1.5 }}>
+                Green — leans for
               </span>
             </div>
           </div>
-          <div style={{ marginTop: 8, fontFamily: 'var(--font-ui)', fontSize: 8, color: '#3a3a35', lineHeight: 1.6 }}>
-            Clustering = consensus forming. Scattering = polarization. Speed = intensity of debate.
+          <div style={{ marginTop: 9, fontFamily: 'var(--font-ui)', fontSize: 10, color: '#FFFFFF', lineHeight: 1.55, opacity: 0.9 }}>
+            Clustering = consensus. Scattering = polarization. Speed = intensity.
           </div>
         </div>
       )}

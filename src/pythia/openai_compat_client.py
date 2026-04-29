@@ -49,10 +49,10 @@ class OpenAICompatClient:
         self._http = http_client or httpx.AsyncClient(timeout=120.0)
         self._rate_limiter = RateLimiter(rpm=rpm)
 
-    async def generate(self, prompt: str, system: str | None = None) -> dict:
+    async def generate(self, prompt: str, system: str | None = None, seed: int | None = None) -> dict:
         logger.info(
-            "LLM call provider=%s model=%s prompt_chars=%d has_system=%s",
-            self.provider_name, self.model, len(prompt), system is not None,
+            "LLM call provider=%s model=%s prompt_chars=%d has_system=%s seed=%s",
+            self.provider_name, self.model, len(prompt), system is not None, seed,
         )
         logger.debug("LLM system:\n%s", system or "(none)")
         logger.debug("LLM prompt:\n%s", prompt)
@@ -67,6 +67,8 @@ class OpenAICompatClient:
             "messages": messages,
             "response_format": {"type": "json_object"},
         }
+        if seed is not None:
+            payload["seed"] = seed
         headers = {"Authorization": f"Bearer {self.api_key}"}
 
         for attempt in range(_MAX_RETRIES):

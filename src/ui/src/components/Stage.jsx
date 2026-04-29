@@ -87,16 +87,16 @@ function ProtagNode({ protagonist, state, delay, onClick, isSelected }) {
         <div style={{
           fontFamily: 'var(--font-ui)',
           fontWeight: 600,
-          fontSize: 11.5,
-          color: 'var(--text-primary)',
+          fontSize: 12,
+          color: '#FFFFFF',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
         }}>{protagonist.name}</div>
         <div style={{
           fontFamily: 'var(--font-ui)',
-          fontWeight: 300,
-          fontSize: 9.5,
+          fontWeight: 400,
+          fontSize: 10,
           color: 'var(--gold)',
           marginTop: 2,
           opacity: visible ? 1 : 0,
@@ -104,15 +104,15 @@ function ProtagNode({ protagonist, state, delay, onClick, isSelected }) {
         }}>{protagonist.trait}</div>
         <div style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: 9,
-          color: 'var(--text-muted)',
+          fontSize: 10,
+          color: '#FFFFFF',
           marginTop: 3,
         }}>{visible ? `${Math.round(conf)}%` : '—'}</div>
         {protagonist.amended && (
           <div style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: 8,
-            color: '#7A6A3A',
+            fontSize: 9,
+            color: 'var(--gold)',
             marginTop: 3,
             letterSpacing: '0.06em',
           }}>↺ amended</div>
@@ -150,7 +150,7 @@ export default function Stage({ protagonists, protoStates, loading, selectedAgen
       width: 210,
       flexShrink: 0,
       borderRight: '1px solid var(--border)',
-      padding: '20px 18px',
+      padding: '18px 16px',
       overflowY: 'auto',
     }}>
       <style>{`
@@ -162,11 +162,11 @@ export default function Stage({ protagonists, protoStates, loading, selectedAgen
 
       <div style={{
         fontFamily: 'var(--font-mono)',
-        fontSize: 8,
+        fontSize: 9,
         letterSpacing: '0.18em',
         textTransform: 'uppercase',
-        color: 'var(--text-ui)',
-        marginBottom: 18,
+        color: '#FFFFFF',
+        marginBottom: 16,
       }}>// The Stage</div>
 
       {showSkeleton ? (

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+import re
 
+from pythia.confidence import ConfidenceReading, compute_confidence
 from pythia.llm import LLMClient
 from pythia.models import (
     DecisionSummary,
@@ -13,6 +15,12 @@ from pythia.models import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Step 7: citation pattern — matches [F1], [F23], etc.
+_CITATION_PATTERN = re.compile(r"\[F\d+\]")
+
+# Step 7: below this rate, an agent is flagged as "mostly ignored the document"
+LOW_CITATION_THRESHOLD = 0.20
 
 DECISION_SYSTEM = """\
 You are Pythia's Decision Interpreter. Given a completed simulation with agent trajectories
@@ -24,10 +32,14 @@ into clear, actionable language so the user can make an informed choice.
 CRITICAL: The user came here because they have a real decision to make. Generic summaries like
 "the panel leans toward X" are useless. Be SPECIFIC about what the user should DO next.
 
+IMPORTANT: The confidence label has already been computed deterministically from the panel's
+final stance distribution and will be provided to you. Do NOT override it. Your job is to
+write the CONFIDENCE_RATIONALE that explains WHY the panel landed at that confidence level —
+referencing the specific agents, arguments, and dynamics that produced the dispersion you see.
+
 Your output MUST be a JSON object with:
 - verdict: string — one sentence describing where the panel landed AND what it means for the user's specific decision (e.g. "The panel favors raising a Series A now, primarily driven by competitive pressure — but the strongest dissent came from burn rate concerns that were never resolved")
-- confidence: string — one of "high", "moderate", "low", "polarized"
-- confidence_rationale: string — one sentence explaining why (e.g. "4 of 5 agents converged, but the dissenter raised an unaddressed risk about burn rate")
+- confidence_rationale: string — one sentence explaining WHY this confidence level emerged, citing specific agents or dynamics (e.g. "4 of 5 agents converged toward support, but the dissenter raised an unaddressed risk about burn rate that pulled the aggregate back")
 - arguments_for: array of objects with agent_name, agent_role, position, reasoning — the 2-3 strongest arguments toward the high end of the stance spectrum
 - arguments_against: array of objects with agent_name, agent_role, position, reasoning — the 2-3 strongest arguments toward the low end
 - key_risk: string — the single most important risk or blind spot the simulation revealed. Be specific — name the risk, who raised it, and why it matters.
@@ -37,13 +49,21 @@ Your output MUST be a JSON object with:
 - herd_moments: array of strings — 0-3 moments where group dynamics dominated individual reasoning (these are WARNING signs — the group may have converged for social reasons, not logical ones)"""
 
 
-def _build_decision_prompt(result: RunResult, graph: InfluenceGraph) -> str:
+def _build_decision_prompt(
+    result: RunResult, graph: InfluenceGraph, reading: ConfidenceReading
+) -> str:
     """Build the prompt for the decision summary LLM call."""
     lines = [
         f"User's question: {result.scenario.input}",
         f"Scenario: {result.scenario.title}",
         f"Stance spectrum: {result.scenario.stance_spectrum}",
         f"  (0.0 = {result.scenario.stance_spectrum[0]}, 1.0 = {result.scenario.stance_spectrum[-1]})",
+        "",
+        f"COMPUTED CONFIDENCE (deterministic, do NOT override): {reading.label}",
+        f"  Agreement: {reading.agreement} (stance σ = {reading.stance_stddev:.2f})",
+        f"  Conviction: {reading.conviction} (aggregate {reading.aggregate:.2f}, "
+        f"distance from neutral {abs(reading.aggregate - 0.5):.2f})",
+        f"  Stance spread (max − min): {reading.stance_spread:.2f}",
         "",
         "Agent final positions:",
     ]
@@ -92,15 +112,59 @@ def _build_decision_prompt(result: RunResult, graph: InfluenceGraph) -> str:
     return "\n".join(lines)
 
 
+def _compute_grounded_reasoning_rates(result: RunResult) -> dict[str, float]:
+    """Compute per-agent citation rate: fraction of tick events with at least one [Fxx] citation.
+
+    Returns a dict of agent_id → rate (0.0 to 1.0). Only meaningful when grounding was used.
+    """
+    agent_total: dict[str, int] = {}
+    agent_cited: dict[str, int] = {}
+
+    for tick in result.ticks:
+        for event in tick.events:
+            agent_total[event.agent_id] = agent_total.get(event.agent_id, 0) + 1
+            if _CITATION_PATTERN.search(event.reasoning):
+                agent_cited[event.agent_id] = agent_cited.get(event.agent_id, 0) + 1
+
+    rates = {}
+    for agent_id, total in agent_total.items():
+        cited = agent_cited.get(agent_id, 0)
+        rates[agent_id] = round(cited / total, 4) if total > 0 else 0.0
+
+    return rates
+
+
 async def generate_decision_summary(
     result: RunResult,
     graph: InfluenceGraph,
     llm: LLMClient,
+    has_grounding: bool = False,
 ) -> DecisionSummary:
-    """Generate a human-readable decision summary from simulation results. One LLM call."""
+    """Generate a human-readable decision summary from simulation results. One LLM call.
+
+    Confidence is computed deterministically from final agent stances; the LLM
+    only writes the rationale explaining why the dispersion looks the way it does.
+    """
     logger.info("Generating decision summary for run_id=%s", result.run_id)
 
-    prompt = _build_decision_prompt(result, graph)
+    # Compute deterministic confidence from the final tick's stances
+    final_stances: list[float] = []
+    if result.ticks:
+        # For each agent, use its most recent stance across all ticks
+        last_stances: dict[str, float] = {}
+        for tick in result.ticks:
+            for event in tick.events:
+                last_stances[event.agent_id] = event.stance
+        final_stances = list(last_stances.values())
+
+    reading = compute_confidence(final_stances)
+    logger.info(
+        "Confidence reading label=%s agreement=%s conviction=%s σ=%.3f spread=%.3f",
+        reading.label, reading.agreement, reading.conviction,
+        reading.stance_stddev, reading.stance_spread,
+    )
+
+    prompt = _build_decision_prompt(result, graph, reading)
     logger.debug("Decision summary prompt:\n%s", prompt)
 
     raw = await llm.generate(prompt=prompt, system=DECISION_SYSTEM)
@@ -130,11 +194,34 @@ async def generate_decision_summary(
         if isinstance(t, str):
             takeaways.append(t)
 
+    # Confidence label comes from the deterministic reading, NOT the LLM.
+    # The LLM only provides the rationale.
+    llm_rationale = str(raw.get("confidence_rationale", "")).strip()
+    rationale = llm_rationale or reading.rationale
+
+    # Step 7: compute per-agent grounded reasoning rates
+    grounded_rates: dict[str, float] = {}
+    if has_grounding and result.ticks:
+        grounded_rates = _compute_grounded_reasoning_rates(result)
+        for agent_id, rate in grounded_rates.items():
+            if rate < LOW_CITATION_THRESHOLD:
+                agent_name = next(
+                    (a.name for a in result.agents if a.id == agent_id), agent_id
+                )
+                logger.info(
+                    "Low grounding rate agent=%s rate=%.0f%% (threshold=%.0f%%)",
+                    agent_name, rate * 100, LOW_CITATION_THRESHOLD * 100,
+                )
+
     summary = DecisionSummary(
         verdict=str(raw.get("verdict", "The simulation did not reach a clear conclusion.")),
         verdict_stance=result.summary.final_aggregate_stance,
-        confidence=str(raw.get("confidence", "low")),
-        confidence_rationale=str(raw.get("confidence_rationale", "")),
+        confidence=reading.label,
+        confidence_rationale=rationale,
+        agreement_label=reading.agreement,
+        conviction_label=reading.conviction,
+        stance_stddev=reading.stance_stddev,
+        stance_spread=reading.stance_spread,
         arguments_for=_parse_args(raw.get("arguments_for", [])),
         arguments_against=_parse_args(raw.get("arguments_against", [])),
         key_risk=str(raw.get("key_risk", "")),
@@ -142,6 +229,7 @@ async def generate_decision_summary(
         actionable_takeaways=takeaways,
         influence_narrative=str(raw.get("influence_narrative", "")),
         herd_moments=herd_moments,
+        grounded_reasoning_rates=grounded_rates,
     )
 
     logger.info(

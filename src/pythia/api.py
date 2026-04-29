@@ -14,9 +14,11 @@ from fastapi.responses import StreamingResponse
 
 from pythia.config import GROQ_API_KEY, GROQ_FAST_MODEL, OLLAMA_BASE_URL, OLLAMA_MODEL, RUNS_DIR
 from pythia.llm import build_llm_client
-from pythia.models import OracleRequest, SimulateRequest, SimulateRequestWithDocs
+from pythia.models import BacktestRequest, EnsembleRequest, OracleRequest, SimulateRequest, SimulateRequestWithDocs
 from pythia.oracle_loop import run_oracle_loop
 from pythia.orchestrator import run_simulation, stream_simulation
+from pythia.ensemble import run_ensemble
+from pythia.backtest import run_backtest, run_batch_backtest
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +127,52 @@ def create_app(
             preset=request.preset,
         )
         return result.model_dump(mode="json")
+
+    @app.post("/api/ensemble")
+    async def ensemble(request: EnsembleRequest) -> dict:
+        logger.info(
+            "Ensemble request prompt=%r ensemble_size=%d",
+            request.prompt[:60], request.ensemble_size,
+        )
+        result = await run_ensemble(
+            prompt=request.prompt,
+            context=request.context,
+            ensemble_size=request.ensemble_size,
+            llm=llm,
+            runs_dir=runs_dir,
+            document_text=request.document_text,
+            document_name=request.document_name,
+            agent_count=request.agent_count,
+            tick_count=request.tick_count,
+            preset=request.preset,
+        )
+        return result.model_dump(mode="json")
+
+    @app.post("/api/backtest")
+    async def backtest(request: BacktestRequest) -> dict:
+        logger.info("Backtest request prompt=%r", request.prompt[:60])
+        enriched, bt_result = await run_backtest(
+            prompt=request.prompt,
+            ground_truth=request.ground_truth_outcome,
+            llm=llm,
+            context=request.context,
+            document_text=request.document_text,
+            document_name=request.document_name,
+            agent_count=request.agent_count,
+            tick_count=request.tick_count,
+            preset=request.preset,
+            runs_dir=runs_dir,
+        )
+        return {
+            "run": enriched.model_dump(mode="json"),
+            "backtest": bt_result.model_dump(mode="json"),
+        }
+
+    @app.post("/api/backtest/batch")
+    async def backtest_batch() -> dict:
+        logger.info("Batch backtest request")
+        report = await run_batch_backtest(llm=llm, runs_dir=runs_dir)
+        return report.model_dump(mode="json")
 
     @app.get("/api/runs")
     async def list_runs() -> list[dict]:

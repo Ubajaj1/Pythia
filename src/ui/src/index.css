@@ -2,14 +2,14 @@
   --bg:            #0D0D0B;
   --surface:       #141410;
   --surface-warm:  #16140E;
-  --border:        rgba(255,255,255,0.08);
-  --text-primary:  #B8B4AE;
-  --text-muted:    #6A6862;
-  --text-dim:      #2E2E2A;
-  --text-ui:       #908C86;
-  --gold:          #D4B06A;
-  --gold-dim:      #8A7442;
-  --gold-ui:       #B89A5C;
+  --border:        rgba(255,255,255,0.18);
+  --text-primary:  #FFFFFF;
+  --text-muted:    #FFFFFF;
+  --text-dim:      #6a6a60;
+  --text-ui:       #FFFFFF;
+  --gold:          #F5D98A;
+  --gold-dim:      #D4B06A;
+  --gold-ui:       #F5D98A;
 
   --font-display: 'Playfair Display', Georgia, serif;
   --font-ui:      'Syne', system-ui, sans-serif;
@@ -32,4 +32,19 @@ html, body, #root {
   color: var(--text-primary);
   font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Prevent descender clipping on letters like g, y, p, q.
+   Many small-caps/uppercase labels set tight line-heights combined with
+   fixed-height containers or overflow:hidden which lops off descenders.
+   Giving every text element a minimum line-height and a bit of padding
+   at the baseline keeps descenders visible. */
+h1, h2, h3, h4, h5, h6, p, span, div, button, label, input, textarea, select {
+  line-height: 1.45;
+}
+
+/* Playfair italic has a particularly tall descender on g — give it room. */
+[style*="Playfair"] {
+  line-height: 1.55 !important;
+  padding-bottom: 0.05em;
 }

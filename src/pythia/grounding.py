@@ -61,12 +61,13 @@ async def extract_grounding(
 
     facts_data = raw.get("facts", [])
     facts = []
-    for f in facts_data:
+    for i, f in enumerate(facts_data, start=1):
         if isinstance(f, dict) and "entity" in f and "fact" in f:
             facts.append(GroundingFact(
                 entity=str(f["entity"]),
                 fact=str(f["fact"]),
                 relevance=str(f.get("relevance", "")),
+                fact_id=f"F{i}",
             ))
 
     entity_summary = str(raw.get("entity_summary", ""))
@@ -89,6 +90,7 @@ def format_grounding_for_prompt(grounding: GroundingContext | None) -> str:
     """Format grounding context as a string to inject into LLM prompts.
 
     Returns empty string if no grounding is available — simulation works without it.
+    Facts are labeled with IDs (e.g. [F1], [F2]) so agents can cite them.
     """
     if grounding is None or not grounding.facts:
         return ""
@@ -97,9 +99,10 @@ def format_grounding_for_prompt(grounding: GroundingContext | None) -> str:
         f"\n--- Grounding Data (from: {grounding.source_name}) ---",
         grounding.entity_summary,
         "",
-        "Key facts:",
+        "Key facts (cite as [F1], [F2], etc. when referencing in your reasoning):",
     ]
     for f in grounding.facts:
-        lines.append(f"  • {f.entity}: {f.fact}")
+        fid = f.fact_id or "F?"
+        lines.append(f"  [{fid}] {f.entity}: {f.fact}")
     lines.append("--- End Grounding Data ---\n")
     return "\n".join(lines)
