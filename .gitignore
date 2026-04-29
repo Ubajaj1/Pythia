@@ -76,7 +76,7 @@ htmlcov/
 .worktrees/
 
 # Claude Code — local-only settings (personal permissions, hooks)
-.claude/settings.local.json
+.claude/
 
 # Tool artifacts
 .playwright-mcp/

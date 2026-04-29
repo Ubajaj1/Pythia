@@ -1,19 +1,32 @@
 # Pythia
+
 ### *Consult the oracle before you decide.*
 
-> A self-improving multi-agent simulation engine that shows you how the world responds to your decisions — before you make them.
+> A multi-agent simulation engine that shows you how stakeholders respond to your decision — before you make it.
+
+![license](https://img.shields.io/badge/license-Apache%202.0-blue)
+![python](https://img.shields.io/badge/python-3.11+-blue)
+![react](https://img.shields.io/badge/react-19-61dafb)
 
 ---
 
-## Quick Start (Docker)
+## What it does
+
+You describe a decision in plain English. Pythia generates a cast of agents — investors, customers, critics, regulators — each with a persona, a cognitive bias, and relationships to the others. They argue tick by tick, shift stances, and try to reach consensus. You watch it happen in real time.
+
+Agents whose reasoning doesn't match their actions get pulled into a self-correction loop. Their behavioral rules are rewritten and they re-enter the simulation. By run 5, the oracle is measurably more coherent than run 1.
+
+---
+
+## Quick start
 
 **With an API key (recommended):**
 
 ```bash
-git clone https://github.com/utkarshbajaj/pythia
-cd pythia
+git clone https://github.com/Ubajaj1/Pythia.git
+cd Pythia
 cp .env.example .env
-# Edit .env — add your ANTHROPIC_API_KEY or OPENAI_API_KEY
+# add ANTHROPIC_API_KEY, OPENAI_API_KEY, or GROQ_API_KEY
 docker compose up --build
 ```
 
@@ -23,55 +36,52 @@ Open `http://localhost` in your browser.
 
 ```bash
 docker compose --profile ollama up --build
-# First run pulls the model — takes a few minutes
 docker compose exec ollama ollama pull llama3.1:8b
 ```
 
 ---
 
-## What is Pythia?
-
-You describe a decision. Pythia spins up a panel of agents representing different stakeholders — investors, customers, critics, advocates. They argue, shift positions, and reach (or fail to reach) consensus. Agents that reason poorly are pulled into a self-correction loop and re-enter the simulation smarter.
-
-By run 5, the oracle is measurably more coherent than run 1.
-
----
-
-## Try It Yourself
+## Try it
 
 Paste any of these into the prompt field:
 
 | Scenario | Prompt |
-|----------|--------|
+|---|---|
 | AI adoption | `Should our startup adopt AI coding tools for all engineering tasks?` |
-| Fundraising | `Should we raise a Series A or stay bootstrapped and grow profitably?` |
-| Environment policy | `Should a city ban single-use plastics in restaurants?` |
-| Remote work | `Should tech companies mandate a return to the office 5 days a week?` |
-| Platform policy | `Should a social media platform ban political advertising entirely?` |
+| Fundraising | `Should we raise a Series A or stay bootstrapped?` |
+| Policy | `Should a city ban single-use plastics in restaurants?` |
+| Work model | `Should tech companies mandate a return to office 5 days a week?` |
+| Platform governance | `Should a social media platform ban political advertising entirely?` |
 
-Hit **Consult the Oracle** for a single run, or **Oracle Loop ↻** to run 5 iterations with self-correction.
-
----
-
-## How It Works
-
-**1. Simulate** — Describe a decision. Pythia generates a cast of agents (archetypes, stances, roles) and runs a tick-by-tick opinion dynamics simulation. Each agent reacts to others, shifts position, and logs their reasoning.
-
-**2. Analyze** — After each run, an evaluator scores coherence: do the final stances match the agents' stated reasoning? Incoherent agents are flagged.
-
-**3. Oracle Loop** — Flagged agents are amended (behavioral rules rewritten). The simulation reruns. Repeat up to 5×. Coherence score plotted across runs.
+Hit **Consult the Oracle** for a single run, or **Oracle Loop ↻** to run up to 5 iterations with self-correction.
 
 ---
 
-## Running Without Docker
+## How it works
+
+**1. Analyze** — one LLM call turns your prompt into a typed blueprint: scenario type, stance spectrum, archetypes, tick count.
+
+**2. Generate** — agents are spawned in parallel: personas, cognitive biases (confirmation, loss aversion, anchoring, availability, status-quo, framing), initial stances, influence relationships.
+
+**3. Simulate** — every tick, each agent reads its memory, its neighbors' last messages, and the aggregate stance, then emits `{stance, action, emotion, reasoning, message}`. Bias mechanics tug the stance. All agents update in parallel, so order doesn't bias the outcome.
+
+**4. Evaluate** — after a run, each agent is scored for coherence: does the stated reasoning explain the action?
+
+**5. Amend** — incoherent agents get additional behavioral rules. They re-enter the next run carrying what they learned. Coherence is plotted across runs.
+
+Ensemble mode runs several parallel simulations with different random seeds and reports the distribution of outcomes. Backtest mode compares a run against a ground-truth outcome you supply.
+
+---
+
+## Running without Docker
 
 **Backend:**
 
 ```bash
 pip install -e .
-python -m pythia serve          # API at http://localhost:8000
-# or: python -m pythia "Should we pivot to B2C?"
-# or: python -m pythia oracle "Should we raise a Series A?"
+python -m pythia serve                       # API at http://localhost:8000
+python -m pythia "Should we pivot to B2C?"   # one-shot CLI
+python -m pythia oracle "Should we raise?"   # oracle loop
 ```
 
 **Frontend:**
@@ -79,39 +89,36 @@ python -m pythia serve          # API at http://localhost:8000
 ```bash
 cd src/ui
 npm install
-npm run dev                     # UI at http://localhost:5173
+npm run dev                                  # UI at http://localhost:5173
 ```
 
-Set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in your shell, or run Ollama locally.
+Set `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GROQ_API_KEY` in your shell, or run Ollama locally.
 
 ---
 
-## Tech Stack
+## Tech stack
 
-| Component | Technology |
-|-----------|------------|
-| Backend | Python 3.11, FastAPI, Uvicorn |
-| Agent simulation | Custom engine (opinion dynamics, tick-based) |
-| Oracle loop | Self-correction evaluator + amendment loop |
-| LLM providers | Anthropic, OpenAI, Ollama (auto-detected from env) |
-| Frontend | React 19, Vite |
+| Layer | Stack |
+|---|---|
+| Backend | Python 3.11, FastAPI, Uvicorn, httpx |
+| Simulation | Custom opinion-dynamics engine, tick-based, parallel per-agent LLM calls |
+| LLM providers | Anthropic, OpenAI, Groq, Ollama (auto-detected from env, token-bucket rate limited) |
+| Frontend | React 19, Vite, Server-Sent Events for live streaming |
 | Serving | Nginx (Docker) |
 
 ---
 
-## Project Structure
+## Project layout
 
 ```
 Pythia/
 ├── src/
-│   ├── pythia/        ← Backend: engine, oracle loop, API, LLM clients
-│   └── ui/            ← Frontend: React SPA
-├── tests/             ← 79 Python + 23 UI tests
-├── data/              ← Simulation run outputs (gitignored)
-├── docs/              ← Architecture diagram
-├── Dockerfile         ← Backend image
-├── docker-compose.yml ← Full stack (backend + nginx + optional Ollama)
-└── .env.example       ← API key template
+│   ├── pythia/        backend: engine, oracle loop, API, LLM clients
+│   └── ui/            frontend: React SPA
+├── tests/             Python + JS tests
+├── data/              run outputs and logs (gitignored)
+├── docs/              architecture + design notes
+└── docker-compose.yml full stack
 ```
 
 ---
