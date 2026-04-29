@@ -152,7 +152,6 @@ export default function InputBar({ onOracleResult, onStreamEvent, onEnsembleResu
   useEffect(() => {
     if (prefillPrompt) setPrompt(prefillPrompt)
   }, [prefillPrompt])
-  const [context, setContext] = useState('')
   const [documentText, setDocumentText] = useState(null)
   const [documentName, setDocumentName] = useState(null)
   const [error, setError] = useState(null)
@@ -184,7 +183,6 @@ export default function InputBar({ onOracleResult, onStreamEvent, onEnsembleResu
   function buildRequestBody() {
     const body = {
       prompt: prompt.trim(),
-      context: context.trim() || undefined,
     }
     if (documentText) {
       body.document_text = documentText
@@ -259,14 +257,38 @@ export default function InputBar({ onOracleResult, onStreamEvent, onEnsembleResu
     setError(null)
     try {
       const body = { ...buildRequestBody(), max_runs: 5 }
-      const resp = await fetch(`${API_BASE}/api/oracle`, {
+      const resp = await fetch(`${API_BASE}/api/oracle/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
       if (!resp.ok) throw new Error(`Request failed: ${resp.status}`)
-      const result = await resp.json()
-      onOracleResult(result)
+      // Stream events so the Arena/Stage update during each oracle iteration.
+      // Same pattern as ensemble — forward everything except `done` through
+      // onStreamEvent (so the live view animates), and call onOracleResult
+      // with the final OracleLoopResult so the post-run oracle view renders
+      // with coherence history, amendments, etc.
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop()
+        for (const part of parts) {
+          const line = part.trim()
+          if (!line.startsWith('data: ')) continue
+          const event = JSON.parse(line.slice(6))
+          if (event.type === 'error') throw new Error(event.message)
+          if (event.type === 'done') {
+            onOracleResult(event.data)
+          } else {
+            onStreamEvent(event)
+          }
+        }
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -281,14 +303,39 @@ export default function InputBar({ onOracleResult, onStreamEvent, onEnsembleResu
     setError(null)
     try {
       const body = { ...buildRequestBody(), ensemble_size: ensembleSize }
-      const resp = await fetch(`${API_BASE}/api/ensemble`, {
+      const resp = await fetch(`${API_BASE}/api/ensemble/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
       if (!resp.ok) throw new Error(`Request failed: ${resp.status}`)
-      const result = await resp.json()
-      onEnsembleResult(result)
+      // Stream events so the Arena/Stage update during each run. We forward
+      // every event except `done` through onStreamEvent (same channel as a
+      // single simulate stream); the final `done` event carries the full
+      // EnsembleResult which goes to onEnsembleResult so the post-run view
+      // (per-run selector, robustness badges) renders.
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop()
+        for (const part of parts) {
+          const line = part.trim()
+          if (!line.startsWith('data: ')) continue
+          const event = JSON.parse(line.slice(6))
+          if (event.type === 'error') throw new Error(event.message)
+          if (event.type === 'done') {
+            onEnsembleResult(event.data)
+          } else {
+            // Forward scenario/tick/etc. so the live Arena & Stage animate.
+            onStreamEvent(event)
+          }
+        }
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -316,14 +363,44 @@ export default function InputBar({ onOracleResult, onStreamEvent, onEnsembleResu
           notes: gtNotes,
         },
       }
-      const resp = await fetch(`${API_BASE}/api/backtest`, {
+      const resp = await fetch(`${API_BASE}/api/backtest/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
       if (!resp.ok) throw new Error(`Request failed: ${resp.status}`)
-      const result = await resp.json()
-      onBacktestResult(result)
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let lastBacktest = null
+      let lastDone = null
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop()
+        for (const part of parts) {
+          const line = part.trim()
+          if (!line.startsWith('data: ')) continue
+          const event = JSON.parse(line.slice(6))
+          if (event.type === 'error') throw new Error(event.message)
+          if (event.type === 'backtest') {
+            // Hold the calibration score — we hand it off with the run result.
+            lastBacktest = event.data
+            continue
+          }
+          if (event.type === 'done') {
+            lastDone = event.data
+          }
+          // Forward thinking/blueprint/scenario/tick/done to the stream renderer
+          // so the backtest looks and feels the same as a regular simulation.
+          onStreamEvent(event)
+        }
+      }
+      if (lastDone && lastBacktest) {
+        onBacktestResult({ run: lastDone, backtest: lastBacktest })
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -358,14 +435,6 @@ export default function InputBar({ onOracleResult, onStreamEvent, onEnsembleResu
           placeholder="Describe a decision... e.g. Fed raises rates 50bps"
           disabled={isLoading}
           style={{ ...inputStyle, flex: 1 }}
-        />
-        <input
-          type="text"
-          value={context}
-          onChange={e => setContext(e.target.value)}
-          placeholder="Optional context..."
-          disabled={isLoading}
-          style={{ ...inputStyle, width: '200px' }}
         />
         {/* Document upload */}
         <input
@@ -413,6 +482,7 @@ export default function InputBar({ onOracleResult, onStreamEvent, onEnsembleResu
           type="button"
           onClick={handleConsult}
           disabled={isLoading || !prompt.trim()}
+          title="Run a single panel — agents deliberate once and return a verdict. Fast, streamed live. Best for a first look."
           style={{
             background: isLoading ? '#3a3520' : '#F5D98A',
             color: '#0D0D0B',
@@ -433,6 +503,7 @@ export default function InputBar({ onOracleResult, onStreamEvent, onEnsembleResu
           type="button"
           onClick={handleOracle}
           disabled={isLoading || !prompt.trim()}
+          title="Self-healing loop: runs the panel, critiques each agent for coherence, amends incoherent agents via the Temple of Learning, then re-runs. Up to 5 iterations. Slower but more robust."
           style={{
             background: 'transparent',
             color: isLoading ? '#6a6a60' : '#F5D98A',
@@ -447,7 +518,7 @@ export default function InputBar({ onOracleResult, onStreamEvent, onEnsembleResu
             opacity: (!prompt.trim() || isLoading) ? 0.6 : 1,
           }}
         >
-          {isLoading ? 'Consulting...' : 'Oracle Loop ↻'}
+          {isLoading ? 'Consulting...' : 'Oracle Loop ↻ (self-heal)'}
         </button>
         <div style={{ display: 'flex', alignItems: 'stretch', border: '1px solid #8FD18F', borderRadius: 4, overflow: 'hidden' }}>
           <button
@@ -609,7 +680,7 @@ export default function InputBar({ onOracleResult, onStreamEvent, onEnsembleResu
             alignItems: 'center',
             gap: 4,
           }}>
-            Clarity
+            Confidence
             <select
               value={gtConfidence}
               onChange={e => setGtConfidence(e.target.value)}

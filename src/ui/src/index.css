@@ -35,16 +35,45 @@ html, body, #root {
 }
 
 /* Prevent descender clipping on letters like g, y, p, q.
-   Many small-caps/uppercase labels set tight line-heights combined with
-   fixed-height containers or overflow:hidden which lops off descenders.
-   Giving every text element a minimum line-height and a bit of padding
-   at the baseline keeps descenders visible. */
-h1, h2, h3, h4, h5, h6, p, span, div, button, label, input, textarea, select {
-  line-height: 1.45;
+   Root cause was twofold:
+     1. Tight inline `lineHeight` styles (e.g. 1.15) clipped the descender
+        within the line box itself.
+     2. Ancestor containers using `overflow: hidden` with a fixed height
+        chopped anything that poked below the baseline.
+   The fix below adds generous line-height to text-heavy elements and
+   ensures text-bearing divs/spans don't clip their children by default. */
+
+/* Generic fallback: text elements get at least 1.5 line-height unless
+   overridden. Uses a class you can opt out of explicitly if needed. */
+body, p, h1, h2, h3, h4, h5, h6, li, dd, dt, caption, th, td, label,
+button, input, textarea, select, figcaption {
+  line-height: 1.5;
 }
 
-/* Playfair italic has a particularly tall descender on g — give it room. */
-[style*="Playfair"] {
-  line-height: 1.55 !important;
-  padding-bottom: 0.05em;
+/* Playfair Display italic has a particularly deep `g` descender.
+   Apply this class to every Playfair-rendered element. */
+.font-display,
+.playfair {
+  font-family: 'Playfair Display', Georgia, serif !important;
+  line-height: 1.6 !important;
+  padding-bottom: 0.12em;
+  /* Keep descenders visible even when the parent clips. */
+  overflow: visible;
+}
+
+/* Defensive: any element that explicitly renders Playfair via inline style
+   still gets the same line-height bump. The `style*` selector matches
+   common orderings of the font-family declaration. */
+[style*="Playfair Display"],
+[style*="var(--font-display)"] {
+  line-height: 1.6 !important;
+  padding-bottom: 0.12em;
+  overflow: visible;
+}
+
+/* Wrap long words and URLs in decision-panel body copy instead of
+   letting them cut off at the panel edge. */
+.wrap-anywhere {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }

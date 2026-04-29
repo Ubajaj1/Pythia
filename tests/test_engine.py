@@ -236,3 +236,36 @@ class TestSimulationEngine:
         # After 3 ticks, each agent's memory should have 3 entries
         assert len(engine.memories["agent-a"].for_prompt()) == 3
         assert len(engine.memories["agent-b"].for_prompt()) == 3
+
+
+
+class TestDuplicateIdGuard:
+    """Engine must reject agents with colliding IDs.
+
+    Regression: without this guard, two agents with the same id would both
+    write into current_stances[id], silently dropping one from the aggregate
+    (see the Netflix backtest post-mortem).
+    """
+
+    def test_duplicate_ids_raise(self):
+        agents = [
+            Agent(id="analyst-marcus", name="Bullish", role="analyst",
+                  persona="p", bias="recency_bias", initial_stance=0.85,
+                  behavioral_rules=["x"]),
+            Agent(id="analyst-marcus", name="Skeptical", role="analyst",
+                  persona="p", bias="negativity_bias", initial_stance=0.25,
+                  behavioral_rules=["x"]),
+        ]
+        llm = FakeLLMClient(responses=[])
+        with pytest.raises(ValueError, match="duplicate IDs"):
+            SimulationEngine(blueprint=make_test_blueprint(), agents=agents, llm=llm)
+
+    def test_unique_ids_construct_cleanly(self):
+        """Baseline: unique IDs build without complaint."""
+        llm = FakeLLMClient(responses=[])
+        engine = SimulationEngine(
+            blueprint=make_test_blueprint(),
+            agents=make_test_agents(),
+            llm=llm,
+        )
+        assert len(engine.current_stances) == 2

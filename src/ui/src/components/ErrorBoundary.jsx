@@ -28,7 +28,7 @@ export default class ErrorBoundary extends Component {
           background: '#0D0D0B',
           color: '#6A6762',
         }}>
-          <div style={{
+          <div className="playfair" style={{
             fontFamily: 'Playfair Display, serif',
             fontStyle: 'italic',
             fontSize: 22,

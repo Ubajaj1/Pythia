@@ -140,7 +140,7 @@ def build_llm_client(
     """
     import os
     from pythia.config import (
-        ANTHROPIC_API_KEY, ANTHROPIC_MODEL,
+        ANTHROPIC_API_KEY, ANTHROPIC_MODEL, ANTHROPIC_RPM,
         GROQ_API_KEY, GROQ_BASE_URL, GROQ_MODEL,
         OLLAMA_BASE_URL, OLLAMA_MODEL,
         OPENAI_API_KEY, OPENAI_MODEL,
@@ -157,8 +157,15 @@ def build_llm_client(
         from pythia.anthropic_client import AnthropicClient
         if not ANTHROPIC_API_KEY:
             raise ValueError("ANTHROPIC_API_KEY env var is not set")
-        logger.info("LLM provider=anthropic model=%s", model or ANTHROPIC_MODEL)
-        return AnthropicClient(api_key=ANTHROPIC_API_KEY, model=model or ANTHROPIC_MODEL)
+        logger.info(
+            "LLM provider=anthropic model=%s rpm=%d",
+            model or ANTHROPIC_MODEL, ANTHROPIC_RPM,
+        )
+        return AnthropicClient(
+            api_key=ANTHROPIC_API_KEY,
+            model=model or ANTHROPIC_MODEL,
+            rpm=ANTHROPIC_RPM,
+        )
 
     if effective_provider == "groq":
         from pythia.openai_compat_client import OpenAICompatClient

@@ -142,3 +142,76 @@ class TestOracleEndpoint:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp = await client.post("/api/oracle", json={"prompt": "test", "max_runs": 0})
         assert resp.status_code == 422
+
+
+class TestFastLLMProvisioning:
+    """Regression: fast_llm must only spin up when the effective provider is Groq.
+
+    Previously, if the user had both ANTHROPIC_API_KEY and GROQ_API_KEY set,
+    the app would auto-detect Anthropic as the main provider but then build a
+    fast_llm that re-detected Anthropic and handed it a Groq model name,
+    producing 404s against api.anthropic.com/v1/messages.
+    """
+
+    async def test_fast_llm_built_only_for_groq(self, monkeypatch):
+        """Explicit provider=groq path gets a fast_llm."""
+        from pythia import api as api_module
+        calls: list[dict] = []
+
+        def fake_build(provider=None, ollama_url=None, model=None):
+            calls.append({"provider": provider, "model": model})
+            return object()
+
+        monkeypatch.setattr(api_module, "build_llm_client", fake_build)
+        monkeypatch.setattr(api_module, "GROQ_API_KEY", "groq-key")
+        monkeypatch.setattr(api_module, "ANTHROPIC_API_KEY", "")
+        monkeypatch.setattr(api_module, "OPENAI_API_KEY", "")
+
+        api_module.create_app(provider="groq")
+
+        # Two builds expected: main llm + fast_llm
+        assert len(calls) == 2
+        assert calls[1]["provider"] == "groq"
+        # Fast model must be a Groq model name
+        assert "llama" in (calls[1]["model"] or "").lower()
+
+    async def test_fast_llm_not_built_when_anthropic_auto_detected(self, monkeypatch):
+        """Regression for 404: with ANTHROPIC_API_KEY set and provider=None,
+        we must NOT build a fast_llm using a Groq model."""
+        from pythia import api as api_module
+        calls: list[dict] = []
+
+        def fake_build(provider=None, ollama_url=None, model=None):
+            calls.append({"provider": provider, "model": model})
+            return object()
+
+        monkeypatch.setattr(api_module, "build_llm_client", fake_build)
+        monkeypatch.setattr(api_module, "GROQ_API_KEY", "groq-key")       # both keys set
+        monkeypatch.setattr(api_module, "ANTHROPIC_API_KEY", "anth-key")  # both keys set
+        monkeypatch.setattr(api_module, "OPENAI_API_KEY", "")
+
+        api_module.create_app()  # provider=None — auto-detect
+
+        # Only one build expected: the main llm. No fast_llm.
+        assert len(calls) == 1, (
+            f"Expected no fast_llm when Anthropic is auto-detected, got: {calls}"
+        )
+
+    async def test_fast_llm_not_built_when_user_specifies_model(self, monkeypatch):
+        """If the user explicitly sets a model, don't override with Groq fast model."""
+        from pythia import api as api_module
+        calls: list[dict] = []
+
+        def fake_build(provider=None, ollama_url=None, model=None):
+            calls.append({"provider": provider, "model": model})
+            return object()
+
+        monkeypatch.setattr(api_module, "build_llm_client", fake_build)
+        monkeypatch.setattr(api_module, "GROQ_API_KEY", "groq-key")
+        monkeypatch.setattr(api_module, "ANTHROPIC_API_KEY", "")
+        monkeypatch.setattr(api_module, "OPENAI_API_KEY", "")
+
+        api_module.create_app(provider="groq", model="llama-3.3-70b-versatile")
+
+        assert len(calls) == 1
+        assert calls[0]["model"] == "llama-3.3-70b-versatile"

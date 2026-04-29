@@ -222,8 +222,21 @@ export default function Arena({ crowdStateIndex, crowdStateName, aggregateStance
               </span>
             </div>
           </div>
-          <div style={{ marginTop: 9, fontFamily: 'var(--font-ui)', fontSize: 10, color: '#FFFFFF', lineHeight: 1.55, opacity: 0.9 }}>
-            Clustering = consensus. Scattering = polarization. Speed = intensity.
+          <div style={{
+            marginTop: 10,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 9,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            color: 'var(--gold)',
+            marginBottom: 4,
+          }}>States (from live data)</div>
+          <div style={{ fontFamily: 'var(--font-ui)', fontSize: 10, color: '#FFFFFF', lineHeight: 1.6 }}>
+            <strong>Scattered</strong> — wide spread, no lean.<br />
+            <strong>Drifting</strong> — aggregate moving this tick.<br />
+            <strong>Converging</strong> — narrowing + active herding.<br />
+            <strong>Locked</strong> — tight consensus, little movement.<br />
+            <strong>Polarized</strong> — two camps, wide gap.
           </div>
         </div>
       )}

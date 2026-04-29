@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { formatBias } from '../format'
 
 /**
  * The Oracle's Method — transparency panel showing how the simulation was computed.
@@ -7,9 +8,22 @@ import { useState } from 'react'
  * thresholds, ensemble size, seed, and LLM provider/model.
  *
  * Designed as a collapsible drawer that sits above the DecisionPanel footer.
+ * Auto-opens once per run when the verdict lands (isComplete=true) so
+ * viewers discover the methodology at the natural moment — and stays open
+ * until the user explicitly collapses it.
  */
-export default function OracleMethod({ methodology, runId }) {
+export default function OracleMethod({ methodology, runId, isComplete }) {
   const [open, setOpen] = useState(false)
+  // Track whether we've already auto-opened for this particular run so a user
+  // who collapses the panel doesn't have it snap back open on re-renders.
+  const [autoOpenedForRunId, setAutoOpenedForRunId] = useState(null)
+
+  useEffect(() => {
+    if (isComplete && runId && runId !== autoOpenedForRunId) {
+      setOpen(true)
+      setAutoOpenedForRunId(runId)
+    }
+  }, [isComplete, runId, autoOpenedForRunId])
 
   if (!methodology) return null
 
@@ -26,6 +40,16 @@ export default function OracleMethod({ methodology, runId }) {
     }}>
       <div
         onClick={() => setOpen(o => !o)}
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        title={open ? 'Collapse methodology panel' : 'Expand methodology panel'}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setOpen(o => !o)
+          }
+        }}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -49,6 +73,16 @@ export default function OracleMethod({ methodology, runId }) {
           height: 1,
           background: '#3a3a32',
         }} />
+        <div style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 9,
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          color: '#FFFFFF',
+          opacity: 0.6,
+        }}>
+          {open ? 'Collapse' : 'Expand'}
+        </div>
         <div style={{
           fontFamily: 'var(--font-mono)',
           fontSize: 10,
@@ -136,7 +170,7 @@ export default function OracleMethod({ methodology, runId }) {
                       padding: '2px 8px',
                       borderRadius: 2,
                     }}>
-                      {bias}{count > 1 ? ` ×${count}` : ''}
+                      {formatBias(bias)}{count > 1 ? ` ×${count}` : ''}
                     </span>
                   )
                 })}

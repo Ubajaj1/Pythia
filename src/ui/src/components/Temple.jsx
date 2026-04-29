@@ -79,13 +79,12 @@ export default function Temple({ protagonist, amendment }) {
         pointerEvents: 'none',
       }}>
         <div style={{ width: 22, height: 1, background: '#FFFFFF' }} />
-        <div style={{
+        <div className="playfair" style={{
           fontFamily: 'var(--font-display)',
           fontStyle: 'italic',
           fontSize: 12,
           color: '#FFFFFF',
           textAlign: 'center',
-          lineHeight: 1.8,
         }}>The oracle<br />awaits the<br />fallen</div>
         <div style={{ width: 22, height: 1, background: '#FFFFFF' }} />
       </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const confidenceColors = {
   high: '#6A9B6A',
@@ -47,6 +47,14 @@ function ArgumentCard({ arg, direction }) {
 export default function DecisionPanel({ decisionSummary, stanceSpectrum, ensembleResult, backtestResult }) {
   const [expanded, setExpanded] = useState(false)
 
+  // Close the expanded overlay on Escape so keyboard users aren't trapped.
+  useEffect(() => {
+    if (!expanded) return
+    const onKey = (e) => { if (e.key === 'Escape') setExpanded(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [expanded])
+
   if (!decisionSummary) return null
 
   const ds = decisionSummary
@@ -59,7 +67,11 @@ export default function DecisionPanel({ decisionSummary, stanceSpectrum, ensembl
       borderTop: '1px solid var(--border)',
       background: 'var(--surface-warm)',
       flexShrink: 0,
-      overflow: 'hidden',
+      // Contain the absolute-positioned expanded overlay so it anchors here
+      // and doesn't leak out to the root. The collapsed bar itself doesn't
+      // clip, so we only clip on the summary row.
+      position: 'relative',
+      zIndex: 5,
     }}>
       {/* Collapsed summary bar — always visible */}
       <div
@@ -71,6 +83,7 @@ export default function DecisionPanel({ decisionSummary, stanceSpectrum, ensembl
           cursor: 'pointer',
           gap: 14,
           userSelect: 'none',
+          overflow: 'hidden',
         }}
       >
         <div style={{
@@ -85,15 +98,17 @@ export default function DecisionPanel({ decisionSummary, stanceSpectrum, ensembl
           // Oracle Verdict
         </div>
 
-        <div style={{
+        <div className="playfair" style={{
           flex: 1,
           fontFamily: 'var(--font-display)',
           fontStyle: 'italic',
           fontSize: 13,
           color: '#FFFFFF',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
           overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
+          minWidth: 0,
         }}>
           {ds.verdict}
         </div>
@@ -202,18 +217,71 @@ export default function DecisionPanel({ decisionSummary, stanceSpectrum, ensembl
         </div>
       </div>
 
-      {/* Expanded detail */}
-      <div style={{
-        maxHeight: expanded ? 420 : 0,
-        overflow: 'hidden',
-        transition: 'max-height 0.4s ease',
-      }}>
-        <div style={{
-          padding: '0 28px 16px',
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '12px 24px',
-        }}>
+      {/* Expanded detail — overlay anchored to the bottom of the viewport so it
+          always has room to scroll regardless of how tall the main layout
+          (Header, Stage/Arena, OracleMethod, StanceGraph) is. Without this
+          the panel's natural position can be pushed below the fold on shorter
+          windows, stranding the Ensemble Details / Backtest sections out of
+          reach. Using position: absolute and anchoring to bottom: 100% puts
+          it above the collapsed bar; we keep overflow-y auto and cap height
+          at 75vh so it fills most of the viewport but never overflows it. */}
+      {expanded && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: '100%',
+            maxHeight: '75vh',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            background: 'var(--surface-warm)',
+            borderTop: '1px solid var(--border)',
+            borderBottom: '1px solid var(--border)',
+            boxShadow: '0 -8px 24px rgba(0,0,0,0.35)',
+            // Stop wheel/touch scrolls from bubbling up and scrolling the
+            // (overflow-hidden) body; also avoids the main flex row
+            // intercepting them.
+            overscrollBehavior: 'contain',
+          }}
+          // Clicks inside the expanded region must not toggle collapse.
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="wrap-anywhere" style={{
+            padding: '14px 28px 20px',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '12px 24px',
+          }}>
+          {/* Full verdict — always wraps, never truncated */}
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 9,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: 'var(--gold)',
+              marginBottom: 6,
+            }}>Full Verdict</div>
+            <div className="playfair" style={{
+              fontFamily: 'var(--font-display)',
+              fontStyle: 'italic',
+              fontSize: 14,
+              color: '#FFFFFF',
+            }}>
+              {ds.verdict}
+            </div>
+            {ds.confidence_rationale && (
+              <div style={{
+                fontFamily: 'var(--font-ui)',
+                fontWeight: 400,
+                fontSize: 11,
+                color: '#FFFFFF',
+                marginTop: 6,
+                opacity: 0.9,
+              }}>{ds.confidence_rationale}</div>
+            )}
+          </div>
           {/* Arguments For */}
           <div>
             <div style={{
@@ -548,8 +616,9 @@ export default function DecisionPanel({ decisionSummary, stanceSpectrum, ensembl
               )}
             </div>
           )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

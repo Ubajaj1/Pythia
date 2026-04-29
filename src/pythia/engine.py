@@ -317,6 +317,22 @@ class SimulationEngine:
         self.agents = agents
         self.llm = llm
         self.grounding_context = grounding_context
+
+        # Defensive check — the generator deduplicates IDs, but a caller
+        # constructing agents by hand (tests, scripts) could still pass
+        # colliding IDs. current_stances is a dict keyed by id, so
+        # collisions silently drop agents from the aggregate.
+        ids_seen: dict[str, int] = {}
+        for a in agents:
+            ids_seen[a.id] = ids_seen.get(a.id, 0) + 1
+        dupes = [aid for aid, c in ids_seen.items() if c > 1]
+        if dupes:
+            raise ValueError(
+                f"SimulationEngine received agents with duplicate IDs: {dupes}. "
+                "Each agent.id must be unique — the engine stores state keyed by "
+                "id and colliding agents would be silently dropped from the aggregate."
+            )
+
         self.memories: dict[str, AgentMemory] = {
             a.id: AgentMemory(a.id) for a in agents
         }

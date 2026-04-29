@@ -108,3 +108,144 @@ class TestGenerateAgents:
         stances = [a.initial_stance for a in agents]
         spread = max(stances) - min(stances)
         assert spread >= 0.3  # 0.8 - 0.2 = 0.6
+
+
+
+class TestDedupeAgentIds:
+    def test_unique_ids_unchanged(self):
+        from pythia.generator import _dedupe_agent_ids
+        agents = [
+            Agent(id="a", name="A", role="r", persona="p", bias="anchoring",
+                  initial_stance=0.5, behavioral_rules=["x"]),
+            Agent(id="b", name="B", role="r", persona="p", bias="anchoring",
+                  initial_stance=0.5, behavioral_rules=["x"]),
+        ]
+        out = _dedupe_agent_ids(agents)
+        assert [a.id for a in out] == ["a", "b"]
+
+    def test_duplicate_ids_get_numeric_suffix(self):
+        from pythia.generator import _dedupe_agent_ids
+        agents = [
+            Agent(id="analyst-marcus", name="Bullish Marcus", role="analyst",
+                  persona="p", bias="recency_bias", initial_stance=0.85,
+                  behavioral_rules=["x"]),
+            Agent(id="analyst-marcus", name="Skeptical Marcus", role="analyst",
+                  persona="p", bias="negativity_bias", initial_stance=0.25,
+                  behavioral_rules=["x"]),
+            Agent(id="analyst-marcus", name="Third Marcus", role="analyst",
+                  persona="p", bias="anchoring", initial_stance=0.5,
+                  behavioral_rules=["x"]),
+        ]
+        out = _dedupe_agent_ids(agents)
+        ids = [a.id for a in out]
+        assert ids[0] == "analyst-marcus"        # first occurrence keeps id
+        assert ids[1] == "analyst-marcus-2"
+        assert ids[2] == "analyst-marcus-3"
+        # Names are untouched — name dedupe runs separately
+        assert out[0].name == "Bullish Marcus"
+
+    def test_suffix_collides_with_existing_id(self):
+        from pythia.generator import _dedupe_agent_ids
+        agents = [
+            Agent(id="x", name="X1", role="r", persona="p", bias="anchoring",
+                  initial_stance=0.5, behavioral_rules=["x"]),
+            Agent(id="x-2", name="X2", role="r", persona="p", bias="anchoring",
+                  initial_stance=0.5, behavioral_rules=["x"]),
+            Agent(id="x", name="X3", role="r", persona="p", bias="anchoring",
+                  initial_stance=0.5, behavioral_rules=["x"]),
+        ]
+        out = _dedupe_agent_ids(agents)
+        ids = [a.id for a in out]
+        # First x keeps id, second (x-2) keeps id, third must skip to x-3
+        assert ids == ["x", "x-2", "x-3"]
+
+
+class TestEnsureModerateVoice:
+    """The panel should have at least one voice in [0.4, 0.6] when split."""
+
+    def test_already_has_moderate_no_change(self):
+        from pythia.generator import _ensure_moderate_voice
+        agents = [
+            Agent(id="a1", name="A1", role="r", persona="p", bias="anchoring",
+                  initial_stance=0.1, behavioral_rules=["x"]),
+            Agent(id="a2", name="A2", role="r", persona="p", bias="anchoring",
+                  initial_stance=0.5, behavioral_rules=["x"]),
+            Agent(id="a3", name="A3", role="r", persona="p", bias="anchoring",
+                  initial_stance=0.9, behavioral_rules=["x"]),
+        ]
+        out = _ensure_moderate_voice(agents)
+        assert [a.initial_stance for a in out] == [0.1, 0.5, 0.9]
+
+    def test_u_shaped_panel_promotes_nearest_to_moderate(self):
+        from pythia.generator import _ensure_moderate_voice
+        # U-shaped Netflix-like panel: 4 extreme-con, 3 extreme-pro, no middle.
+        agents = [
+            Agent(id=f"a{i}", name=f"A{i}", role="r", persona="p",
+                  bias="anchoring", initial_stance=s, behavioral_rules=["x"])
+            for i, s in enumerate([0.15, 0.2, 0.22, 0.25, 0.85, 0.88, 0.92])
+        ]
+        out = _ensure_moderate_voice(agents)
+        # Exactly one agent should now sit in [0.4, 0.6]
+        moderates = [a for a in out if 0.4 <= a.initial_stance <= 0.6]
+        assert len(moderates) == 1
+        # The promoted agent should be the one who started closest to 0.5 (0.25)
+        assert moderates[0].id == "a3"
+        # Everyone else is untouched — no panel-wide shift
+        unchanged = [a for a in out if a.id != "a3"]
+        orig = [0.15, 0.2, 0.22, 0.85, 0.88, 0.92]
+        assert sorted(a.initial_stance for a in unchanged) == orig
+
+    def test_not_u_shaped_no_change(self):
+        from pythia.generator import _ensure_moderate_voice
+        # Skewed-pro panel but not U-shaped: only 1 con voice.
+        agents = [
+            Agent(id=f"a{i}", name=f"A{i}", role="r", persona="p",
+                  bias="anchoring", initial_stance=s, behavioral_rules=["x"])
+            for i, s in enumerate([0.2, 0.7, 0.8, 0.9])
+        ]
+        out = _ensure_moderate_voice(agents)
+        assert [a.initial_stance for a in out] == [0.2, 0.7, 0.8, 0.9]
+
+    def test_small_panel_unchanged(self):
+        from pythia.generator import _ensure_moderate_voice
+        agents = [
+            Agent(id="a", name="A", role="r", persona="p", bias="anchoring",
+                  initial_stance=0.1, behavioral_rules=["x"]),
+            Agent(id="b", name="B", role="r", persona="p", bias="anchoring",
+                  initial_stance=0.9, behavioral_rules=["x"]),
+        ]
+        out = _ensure_moderate_voice(agents)
+        assert [a.initial_stance for a in out] == [0.1, 0.9]
+
+
+class TestBiasImbalance:
+    def test_neutral_panel_zero_score(self):
+        from pythia.generator import _bias_imbalance
+        agents = [
+            Agent(id="a", name="A", role="r", persona="p", bias="anchoring",
+                  bias_strength=0.8, initial_stance=0.5, behavioral_rules=["x"]),
+            Agent(id="b", name="B", role="r", persona="p", bias="confirmation_bias",
+                  bias_strength=0.7, initial_stance=0.5, behavioral_rules=["x"]),
+        ]
+        assert _bias_imbalance(agents) == 0.0
+
+    def test_negativity_skew(self):
+        from pythia.generator import _bias_imbalance
+        agents = [
+            Agent(id="a", name="A", role="r", persona="p", bias="negativity_bias",
+                  bias_strength=0.7, initial_stance=0.5, behavioral_rules=["x"]),
+            Agent(id="b", name="B", role="r", persona="p", bias="anchoring",
+                  bias_strength=0.5, initial_stance=0.5, behavioral_rules=["x"]),
+        ]
+        # One negativity bias at 0.7 strength, no optimism — score = -0.7
+        assert _bias_imbalance(agents) == -0.7
+
+    def test_paired_biases_cancel(self):
+        from pythia.generator import _bias_imbalance
+        agents = [
+            Agent(id="a", name="A", role="r", persona="p", bias="negativity_bias",
+                  bias_strength=0.7, initial_stance=0.5, behavioral_rules=["x"]),
+            Agent(id="b", name="B", role="r", persona="p", bias="optimism_bias",
+                  bias_strength=0.7, initial_stance=0.5, behavioral_rules=["x"]),
+        ]
+        assert _bias_imbalance(agents) == 0.0

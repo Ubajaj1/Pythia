@@ -19,7 +19,7 @@ export default function Header({ scenarioName, tick, run, progressPercent, onRes
           alignItems: 'center',
           gap: 12,
         }}>
-          <div style={{
+          <div className="playfair" style={{
             fontFamily: 'var(--font-display)',
             fontStyle: 'italic',
             fontSize: 22,
@@ -27,7 +27,6 @@ export default function Header({ scenarioName, tick, run, progressPercent, onRes
             alignItems: 'center',
             gap: 8,
             color: '#FFFFFF',
-            lineHeight: 1.35,
           }}>
             Pythia
             <span style={{

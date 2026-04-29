@@ -92,12 +92,12 @@ export default function StanceGraph({ ticks, agents, stanceSpectrum, currentTick
 
   return (
     <footer style={{
-      height: 62,
+      height: 130,
       borderTop: '1px solid var(--border)',
       display: 'flex',
       alignItems: 'center',
-      padding: '0 28px',
-      gap: 16,
+      padding: '12px 28px',
+      gap: 18,
       flexShrink: 0,
     }}>
       <div
@@ -107,7 +107,7 @@ export default function StanceGraph({ ticks, agents, stanceSpectrum, currentTick
       >
         <div style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: 9,
+          fontSize: 10,
           letterSpacing: '0.14em',
           textTransform: 'uppercase',
           color: '#FFFFFF',
@@ -116,17 +116,17 @@ export default function StanceGraph({ ticks, agents, stanceSpectrum, currentTick
         }}>
           Stance<br />Trajectory
         </div>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--gold)', marginTop: 2 }}>ⓘ</div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--gold)', marginTop: 3 }}>ⓘ</div>
         {showTooltip && (
           <div style={{
             position: 'absolute',
             bottom: '100%',
             left: 0,
-            width: 230,
+            width: 240,
             background: '#1a1a17',
             border: '1px solid #6a6a60',
-            padding: '7px 9px',
-            fontSize: 10,
+            padding: '8px 10px',
+            fontSize: 11,
             color: '#FFFFFF',
             lineHeight: 1.55,
             zIndex: 10,
@@ -139,15 +139,15 @@ export default function StanceGraph({ ticks, agents, stanceSpectrum, currentTick
         )}
       </div>
 
-      <div style={{ flex: 1, position: 'relative', height: 44 }}>
+      <div style={{ flex: 1, position: 'relative', height: 100 }}>
         {/* Y-axis labels */}
         <div style={{
           position: 'absolute', top: -2, left: 0,
-          fontFamily: 'var(--font-mono)', fontSize: 8, color: '#FFFFFF',
+          fontFamily: 'var(--font-mono)', fontSize: 9, color: '#FFFFFF',
         }}>{highLabel}</div>
         <div style={{
           position: 'absolute', bottom: -2, left: 0,
-          fontFamily: 'var(--font-mono)', fontSize: 8, color: '#FFFFFF',
+          fontFamily: 'var(--font-mono)', fontSize: 9, color: '#FFFFFF',
         }}>{lowLabel}</div>
 
         <svg
@@ -212,12 +212,12 @@ export default function StanceGraph({ ticks, agents, stanceSpectrum, currentTick
 
       <div style={{
         fontFamily: 'var(--font-mono)',
-        fontSize: 20,
+        fontSize: 26,
         fontWeight: 300,
         color: '#FFFFFF',
         letterSpacing: '-0.03em',
         whiteSpace: 'nowrap',
-        minWidth: 46,
+        minWidth: 56,
         textAlign: 'right',
       }}>
         {currentAggregate != null ? currentAggregate.toFixed(2) : '—'}

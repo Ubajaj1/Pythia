@@ -45,13 +45,11 @@ function LandingScreen({ onSelectScenario }) {
       padding: '40px 60px',
     }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{
+        <div className="playfair" style={{
           fontFamily: 'Playfair Display, serif',
           fontStyle: 'italic',
           fontSize: 56,
           color: '#FFFFFF',
-          lineHeight: 1.3,
-          paddingBottom: '0.12em',
         }}>Pythia</div>
         <div style={{
           fontFamily: 'Syne, sans-serif',
@@ -173,7 +171,7 @@ function SimulationView({ scenario, sim, decisionSummary, influenceGraph, select
         />
         <Temple protagonist={templeProtagonist} amendment={templeAmendment} />
       </div>
-      <OracleMethod methodology={methodology} runId={runId} />
+      <OracleMethod methodology={methodology} runId={runId} isComplete={!!decisionSummary} />
       {/* StanceGraph always visible in single-run mode — persists after verdict arrives.
           For streaming/demo the ticks live in streamTicks, not scenario.ticks. */}
       {(() => {
@@ -354,7 +352,7 @@ function EnsembleSimulation({ ensembleResult, selectedAgentId, onAgentClick, onC
   )
 }
 
-function StreamingSimulation({ scenario, ticksRef, doneResult, selectedAgentId, onAgentClick, onCloseAgent, onHome }) {
+function StreamingSimulation({ scenario, ticksRef, doneResult, selectedAgentId, onAgentClick, onCloseAgent, onHome, backtestResult }) {
   const sim = useStreamingSimulation(scenario, ticksRef)
   // `ticksRef.current` is mutated imperatively by the SSE handler; sim.tick
   // ticks up once per TICK_MS and triggers a re-render. Slice up to the
@@ -374,6 +372,7 @@ function StreamingSimulation({ scenario, ticksRef, doneResult, selectedAgentId, 
       runId={doneResult?.run_id}
       onHome={onHome}
       streamTicks={visibleTicks}
+      backtestResult={backtestResult}
     />
   )
 }
@@ -486,15 +485,12 @@ export default function App() {
   }
 
   function handleBacktestResult(result) {
-    setStreamScenario(null)
-    setStreamPhase(null)
-    setStreamDoneResult(null)
-    setOracleResult(null)
-    setEnsembleResult(null)
-    // result has { run: RunResultWithInsights, backtest: BacktestResult }
-    setRunResult(result.run)
+    // By the time we get here, the backtest stream has already populated the
+    // streaming view with live ticks and set streamDoneResult via the `done`
+    // event. We only need to attach the calibration score — don't tear down
+    // the stream state, or we'd lose the live Stage/Arena/StanceGraph that
+    // just animated through the run.
     setBacktestResult(result.backtest)
-    setSelectedAgentId(null)
   }
 
   function handleStreamEvent(event) {
@@ -516,6 +512,11 @@ export default function App() {
       setStreamPhase('ready')
     } else if (event.type === 'tick') {
       streamTicksRef.current.push(event.data)
+    } else if (event.type === 'run_start') {
+      // Ensemble streams restart tick numbering per run. Reset the buffer
+      // so the Arena/StanceGraph animate each run cleanly instead of
+      // appending tick-1 of run-2 on top of the final tick of run-1.
+      streamTicksRef.current = []
     } else if (event.type === 'done') {
       setStreamDoneResult(event.data)
     }
@@ -545,11 +546,12 @@ export default function App() {
           onAgentClick={handleAgentClick}
           onCloseAgent={handleCloseAgent}
           onHome={handleHome}
+          backtestResult={backtestResult}
         />
       ) : streamPhase === 'thinking' ? (
         <ThinkingLayout title={streamTitle} onHome={handleHome} />
       ) : isLoading ? (
-        <div style={{
+        <div className="playfair" style={{
           flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: '#F5D98A', fontFamily: 'Playfair Display, serif', fontSize: '18px',
           fontStyle: 'italic',

@@ -31,6 +31,7 @@ from pythia.models import (
     GroundTruthOutcome,
     RunResultWithInsights,
 )
+from pythia.orchestrator import stream_simulation
 from pythia.summary import build_run_result, generate_run_id
 
 logger = logging.getLogger(__name__)
@@ -177,3 +178,86 @@ async def run_batch_backtest(
         report.total_cases, report.direction_accuracy * 100, report.mean_aggregate_error,
     )
     return report
+
+
+async def stream_backtest(
+    prompt: str,
+    ground_truth: GroundTruthOutcome,
+    llm: LLMClient,
+    context: str | None = None,
+    fast_llm: LLMClient | None = None,
+    document_text: str | None = None,
+    document_name: str | None = None,
+    agent_count: int | None = None,
+    tick_count: int | None = None,
+    preset: str | None = None,
+    runs_dir: str = RUNS_DIR,
+):
+    """Async generator streaming a backtest as SSE-ready dicts.
+
+    Emits the same events as stream_simulation (thinking → blueprint → scenario →
+    tick×N) then a final `backtest` event carrying the calibration score, followed
+    by `done` with the enriched run result. Lets the UI render live agents and
+    tick-by-tick progress instead of blocking on a one-shot call.
+    """
+    logger.info("Streaming backtest started prompt=%r", prompt[:60])
+
+    enriched_result = None
+
+    # Stream through the regular simulation pipeline, capturing the final enriched
+    # result from the `done` event. Everything before that passes through untouched.
+    async for event in stream_simulation(
+        prompt=prompt,
+        llm=llm,
+        context=context,
+        runs_dir=runs_dir,
+        fast_llm=fast_llm,
+        document_text=document_text,
+        document_name=document_name,
+        agent_count=agent_count,
+        tick_count=tick_count,
+        preset=preset,
+    ):
+        if event.get("type") == "done":
+            enriched_result = event["data"]
+            # Hold back the `done` event — we emit it after scoring so the UI
+            # can render the backtest verdict alongside the run result.
+            continue
+        yield event
+
+    if enriched_result is None:
+        # stream_simulation never emitted `done` — something upstream failed.
+        logger.warning("Streaming backtest did not receive a done event")
+        return
+
+    # Score against ground truth
+    predicted_aggregate = enriched_result["summary"]["final_aggregate_stance"]
+    decision_summary = enriched_result.get("decision_summary") or {}
+    predicted_confidence = decision_summary.get("confidence", "low")
+
+    calibration = compute_calibration_score(
+        predicted_aggregate=predicted_aggregate,
+        predicted_confidence=predicted_confidence,
+        actual=ground_truth,
+    )
+
+    run_id = enriched_result.get("run_id", "")
+    backtest_result = BacktestResult(
+        case_id=run_id,
+        prompt=prompt,
+        predicted_aggregate=predicted_aggregate,
+        predicted_confidence=predicted_confidence,
+        actual_aggregate=ground_truth.aggregate_stance,
+        actual_confidence=ground_truth.confidence,
+        calibration=calibration,
+        run_id=run_id,
+    )
+
+    logger.info(
+        "Streaming backtest complete direction=%s error=%.3f confidence_match=%s",
+        calibration.direction_correct, calibration.aggregate_error,
+        calibration.confidence_match,
+    )
+
+    yield {"type": "backtest", "data": backtest_result.model_dump(mode="json")}
+    yield {"type": "done", "data": enriched_result}

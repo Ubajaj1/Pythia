@@ -12,13 +12,21 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from pythia.config import GROQ_API_KEY, GROQ_FAST_MODEL, OLLAMA_BASE_URL, OLLAMA_MODEL, RUNS_DIR
+from pythia.config import (
+    ANTHROPIC_API_KEY,
+    GROQ_API_KEY,
+    GROQ_FAST_MODEL,
+    OLLAMA_BASE_URL,
+    OLLAMA_MODEL,
+    OPENAI_API_KEY,
+    RUNS_DIR,
+)
 from pythia.llm import build_llm_client
 from pythia.models import BacktestRequest, EnsembleRequest, OracleRequest, SimulateRequest, SimulateRequestWithDocs
-from pythia.oracle_loop import run_oracle_loop
+from pythia.oracle_loop import run_oracle_loop, stream_oracle_loop
 from pythia.orchestrator import run_simulation, stream_simulation
-from pythia.ensemble import run_ensemble
-from pythia.backtest import run_backtest, run_batch_backtest
+from pythia.ensemble import run_ensemble, stream_ensemble
+from pythia.backtest import run_backtest, run_batch_backtest, stream_backtest
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +59,21 @@ def create_app(
     )
 
     llm = build_llm_client(provider=provider, ollama_url=ollama_url, model=model)
+
+    # The "fast LLM" is a cheap per-tick model used inside the simulation engine
+    # while the main LLM is used for analyzer / generator / decision summary.
+    # It ONLY makes sense when the effective provider is Groq — passing a Groq
+    # model name to Anthropic/OpenAI would 404. Compute the effective provider
+    # here so we don't rely on `provider is None` as a proxy for "Groq".
+    effective_provider = provider or (
+        "anthropic" if ANTHROPIC_API_KEY else
+        "groq"      if GROQ_API_KEY else
+        "openai"    if OPENAI_API_KEY else
+        "ollama"
+    )
     fast_llm = (
-        build_llm_client(provider=provider, ollama_url=ollama_url, model=GROQ_FAST_MODEL)
-        if GROQ_API_KEY and provider in (None, "groq") and not model
+        build_llm_client(provider="groq", ollama_url=ollama_url, model=GROQ_FAST_MODEL)
+        if effective_provider == "groq" and GROQ_API_KEY and not model
         else None
     )
 
@@ -128,6 +148,39 @@ def create_app(
         )
         return result.model_dump(mode="json")
 
+    @app.post("/api/oracle/stream")
+    async def oracle_stream(request: OracleRequest):
+        logger.info(
+            "Oracle stream request prompt=%r max_runs=%d",
+            request.prompt[:60], request.max_runs,
+        )
+
+        async def event_stream():
+            try:
+                async for event in stream_oracle_loop(
+                    prompt=request.prompt,
+                    context=request.context,
+                    max_runs=request.max_runs,
+                    llm=llm,
+                    runs_dir=runs_dir,
+                    fast_llm=fast_llm,
+                    document_text=request.document_text,
+                    document_name=request.document_name,
+                    agent_count=request.agent_count,
+                    tick_count=request.tick_count,
+                    preset=request.preset,
+                ):
+                    yield f"data: {json.dumps(event)}\n\n"
+            except Exception as exc:
+                logger.exception("Oracle stream error: %s", exc)
+                yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
     @app.post("/api/ensemble")
     async def ensemble(request: EnsembleRequest) -> dict:
         logger.info(
@@ -148,6 +201,39 @@ def create_app(
         )
         return result.model_dump(mode="json")
 
+    @app.post("/api/ensemble/stream")
+    async def ensemble_stream(request: EnsembleRequest):
+        logger.info(
+            "Ensemble stream request prompt=%r ensemble_size=%d",
+            request.prompt[:60], request.ensemble_size,
+        )
+
+        async def event_stream():
+            try:
+                async for event in stream_ensemble(
+                    prompt=request.prompt,
+                    context=request.context,
+                    ensemble_size=request.ensemble_size,
+                    llm=llm,
+                    runs_dir=runs_dir,
+                    fast_llm=fast_llm,
+                    document_text=request.document_text,
+                    document_name=request.document_name,
+                    agent_count=request.agent_count,
+                    tick_count=request.tick_count,
+                    preset=request.preset,
+                ):
+                    yield f"data: {json.dumps(event)}\n\n"
+            except Exception as exc:
+                logger.exception("Ensemble stream error: %s", exc)
+                yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
     @app.post("/api/backtest")
     async def backtest(request: BacktestRequest) -> dict:
         logger.info("Backtest request prompt=%r", request.prompt[:60])
@@ -167,6 +253,36 @@ def create_app(
             "run": enriched.model_dump(mode="json"),
             "backtest": bt_result.model_dump(mode="json"),
         }
+
+    @app.post("/api/backtest/stream")
+    async def backtest_stream(request: BacktestRequest):
+        logger.info("Backtest stream request prompt=%r", request.prompt[:60])
+
+        async def event_stream():
+            try:
+                async for event in stream_backtest(
+                    prompt=request.prompt,
+                    ground_truth=request.ground_truth_outcome,
+                    llm=llm,
+                    context=request.context,
+                    fast_llm=fast_llm,
+                    document_text=request.document_text,
+                    document_name=request.document_name,
+                    agent_count=request.agent_count,
+                    tick_count=request.tick_count,
+                    preset=request.preset,
+                    runs_dir=runs_dir,
+                ):
+                    yield f"data: {json.dumps(event)}\n\n"
+            except Exception as exc:
+                logger.exception("Backtest stream error: %s", exc)
+                yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     @app.post("/api/backtest/batch")
     async def backtest_batch() -> dict:

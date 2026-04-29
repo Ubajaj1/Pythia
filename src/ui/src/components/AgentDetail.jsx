@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatBias } from '../format'
 
 function StanceBar({ value, spectrum }) {
   const lowLabel = spectrum?.[0] || '0.0'
@@ -221,7 +222,7 @@ export default function AgentDetail({ agent, agentInfo, influences, trajectory, 
                 fontFamily: 'var(--font-mono)',
                 fontSize: 12,
                 color: 'var(--gold)',
-              }}>{agentInfo?.bias || agent.trait}</div>
+              }}>{formatBias(agentInfo?.bias || agent.trait)}</div>
             </div>
 
             {/* Current Stance */}
@@ -274,12 +275,11 @@ export default function AgentDetail({ agent, agentInfo, influences, trajectory, 
                   color: '#FFFFFF',
                   marginBottom: 4,
                 }}>Latest Reasoning</div>
-                <div style={{
+                <div className="playfair" style={{
                   fontFamily: 'var(--font-display)',
                   fontStyle: 'italic',
                   fontSize: 12,
                   color: '#FFFFFF',
-                  lineHeight: 1.6,
                 }}>"{trajectory[trajectory.length - 1].reasoning}"</div>
               </div>
             )}
@@ -342,7 +342,7 @@ export default function AgentDetail({ agent, agentInfo, influences, trajectory, 
                 ))}
               </>
             ) : (
-              <div style={{
+              <div className="playfair" style={{
                 fontFamily: 'var(--font-display)',
                 fontStyle: 'italic',
                 fontSize: 12,
@@ -387,7 +387,7 @@ export default function AgentDetail({ agent, agentInfo, influences, trajectory, 
                   }}>
                     {node.action} · {node.emotion}
                   </div>
-                  <div style={{
+                  <div className="playfair" style={{
                     fontFamily: 'var(--font-display)',
                     fontStyle: 'italic',
                     fontSize: 11,
@@ -398,7 +398,7 @@ export default function AgentDetail({ agent, agentInfo, influences, trajectory, 
                 </div>
               ))
             ) : (
-              <div style={{
+              <div className="playfair" style={{
                 fontFamily: 'var(--font-display)',
                 fontStyle: 'italic',
                 fontSize: 12,

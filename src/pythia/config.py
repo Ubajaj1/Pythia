@@ -12,6 +12,9 @@ LOG_LEVEL = "INFO"
 # Provider switching — set one API key to use that provider instead of Ollama
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
+# Anthropic Tier 1 defaults: Haiku = 50 RPM, Sonnet/Opus = lower.
+# Use 40 as a safe margin below 50. Override via ANTHROPIC_RPM env var.
+ANTHROPIC_RPM = int(os.getenv("ANTHROPIC_RPM", "40"))
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_BASE_URL = "https://api.groq.com/openai/v1/chat/completions"
