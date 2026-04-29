@@ -1,70 +1,74 @@
 # Pythia — Speaker Notes
 
 > Total budget: **6 minutes** for the page + live demo together.
-> Target pacing: ~30s for hero, ~30s Who, ~45s What, ~45s Why, **~2m Demo**,
-> ~1m Architecture, ~30s Decisions, ~30s Limitations + close.
+> Target pacing: ~20s hero, ~20s Who, ~40s What, ~50s Why, **~2m Demo**, ~1m Architecture, ~30s Decisions, ~30s Limitations, ~10s close.
 >
-> Read these cue cards top to bottom — each line is one beat. Short, declarative, confident.
+> The page is now deliberately sparse; each bullet is one line. The detail below is what you say out loud.
 
 ---
 
-## Hero — 15 to 30 seconds
+## Hero — 15 to 20 seconds
 
-- "This is Pythia — the line under it is the whole pitch: *consult the oracle before you decide.*"
-- "It's a multi-agent simulation that shows you how stakeholders react to a decision — before you commit to it."
-
----
-
-## Section 1 · Who am I? — 20 to 30 seconds
-
-- "Hi, I'm Utkarsh. I build systems that behave like organisms — agents, feedback loops, interfaces you can watch work."
-- "Pythia is solo full-stack. Backend, frontend, and the weird middle where LLMs meet opinion dynamics."
-- "The reason I built it is on the next slide."
+- "This is Pythia. The line under it is the whole pitch: consult the oracle before you decide."
+- "It is a multi-agent simulation that shows you how stakeholders react to a decision, before you commit to it."
 
 ---
 
-## Section 2 · What is Pythia? — 40 to 50 seconds
+## Section 1 · Who am I? — 15 to 20 seconds
 
-- "You type a decision in plain English — no form, no schema, no dropdowns."
-- "Pythia spins up 5 to 8 agents. Each one has a persona, one cognitive bias from a curated catalog, and relationships to the others — who they respect, distrust, follow, rival."
-- "Then the simulation ticks forward. Every tick, every agent reasons in parallel: what do I now think, how do I feel, what do I say, who am I saying it to?"
-- "After the run, a coherence evaluator asks: did this agent's reasoning actually explain what they did? If not, they go to the Temple of Learning. Their rules get rewritten. They re-enter smarter."
-- **Stats line, pointing at the tiles:** "16 biases, 4 LLM providers, 100+ tests, 5 oracle iterations max."
+- "I'm Utkarsh. I build at Amazon."
+- "I build for fun on the side too, and this is one of those builds."
+
+---
+
+## Section 2 · What is Pythia? — 35 to 45 seconds
+
+> The box says: **Decision making. Play it out before making it.** Read the box, then elaborate.
+
+- "Every meaningful decision has second-order effects you cannot talk your way through. Pythia lets you play them out before you commit."
+- "You describe a decision in plain English. Pythia spawns a panel of agents, each with a persona, a cognitive bias, and relationships to the others. They argue tick by tick. You watch it happen."
+- Walk the four bullets: **solo passion project**, **plain English in**, **agents with teeth**, **self-correcting**.
+- "16 biases in a hand-curated catalog, four LLM providers, 100+ tests, and if a run goes sideways we iterate up to five times."
 
 ---
 
 ## Section 3 · Why Pythia? — 40 to 50 seconds
 
-- "A single LLM gives you one confident-sounding answer. That's the problem."
-- "A panel of 6 biased agents arguing gives you the *texture* of the decision — where consensus forms, who holds out, what would flip the room, where the hidden risk is."
-- **Point at the two columns:** "Left column is what one LLM does. Right column is what we do differently — many voices, declared biases, influence graph driving disagreement, ensemble quantifying uncertainty."
-- "Now let me show you."
+> Four bullets, read each, add the expansion.
+
+1. **Why simulate at all.**
+   > "Simulation is how engineers stress-test bridges, how epidemiologists model outbreaks, how pilots train for failure modes. You surface dynamics you would otherwise discover the expensive way, after committing."
+2. **Why LLMs fit.**
+   > "Authoring believable personas with consistent internal reasoning used to be the hard part. LLMs do that natively. Give one a persona, a bias, a memory, and a world state, and it reasons in character for hundreds of ticks."
+3. **Why Pythia is robust.**
+   > "An LLM improvising personas drifts. Pythia pins it down. Every bias comes from a canonical catalog with citations. Every stance passes through a mechanical correction function. Every run is evaluated for coherence. The LLM is the actor, the engine is the director."
+4. **Why not just roleplay with one LLM.**
+   > "Asking GPT-4 to simulate six stakeholders gives you one voice doing six impressions. In Pythia, each agent is its own prompt, its own memory, its own bias. They disagree because they actually have different contexts."
 
 ---
 
-## Section 4 · Demo — 2 minutes (the core of the talk)
+## Section 4 · Demo — 2 minutes (core of the talk)
 
-> Click "Open the Oracle" or switch windows.
+> Switch to `http://localhost`.
 
-### Setup beat (15s)
-- "Type the prompt. Let's use: *Should a city ban single-use plastics in restaurants?*"
-- "I'll hit Consult the Oracle."
+### Setup (10 s)
+- "Prompt: *Should a city ban single-use plastics in restaurants?* Hit Consult the Oracle."
 
-### What to narrate while it streams (45s)
-- "Six agents just spawned — a restaurant owner, an environmental advocate, a health official, a council member, a resident, an industry lobbyist. Each one has a cognitive bias; you can see them in the sidebar."
-- "Watch the stances move tick by tick. The graph on the left is the stance trajectory per agent. The thickness of the lines between agents — that's the influence graph. When someone sends a message, it lights up."
-- "Notice the aggregate line climbing — that's the panel drifting toward consensus. But see those two lines that stay apart? That's the dissent. That's the value."
+### While it streams (45 s)
+- "Six agents just spawned: a restaurant owner, an environmental advocate, a health official, a council member, a resident, and an industry lobbyist. Each has a cognitive bias — listed in the sidebar."
+- "Watch the stance graph. Each line is one agent's position over time. The links that light up between them are the influence graph; when someone sends a message, the edge fires."
+- "See the aggregate line climbing? That's consensus forming. But the two lines staying apart are the dissent. That's the value."
 
-### Click through the verdict (30s)
-- "The verdict report — one line of plain English plus confidence. Then arguments for, arguments against, the single biggest risk, and what could change to flip the decision."
-- "These aren't generic. They cite *which agent* said what, because the engine tracked it."
+### Verdict report (30 s — image 1 on the slide)
+- "This is the verdict report. One-line call, then arguments for, arguments against, the key risk, and what could flip the decision."
+- "These aren't generic. They cite which agent said what, because the engine tracked it."
 
-### Click the method / influence / agent detail (30s)
-- "Method report — how the oracle arrived at this verdict. The computed confidence is deterministic from stance spread, not a vibe from the LLM."
-- "Click an agent — here's their full tick history. Persona, bias, behavioral rules, tick-by-tick reasoning, and the exact moment they shifted their stance."
+### Agent detail (30 s — image 2 on the slide)
+- "Click an agent. Here's their full tick history: persona, bias, behavioural rules, tick-by-tick reasoning, and the exact moment they shifted their stance."
+- "This is how you audit the panel. Every stance change has a paper trail."
 
-### Oracle Loop beat (10s — optional if you're running long)
-- "If I hit Oracle Loop, it runs again. Evaluator catches incoherent agents. Temple rewrites their rules. Run 5 is measurably more coherent than run 1."
+### Oracle Loop (10 s, optional)
+- "Hit Oracle Loop. It runs again. The evaluator catches incoherent agents, the Temple rewrites their rules, and the coherence curve climbs run over run."
 
 > Come back to the page. Scroll to Architecture.
 
@@ -72,83 +76,74 @@
 
 ## Section 5 · Architecture — 60 to 75 seconds
 
-> Point at the diagram while you talk. Don't read the boxes — read the *arrows*.
+> Point at the diagram. Don't read boxes, read arrows. Then walk the 9 mechanisms.
 
-- "Five layers. Solid arrows are data flow. The dashed red path is the self-correction loop."
-- "Prompt goes into the Analyzer — one LLM call turns English into a typed blueprint: scenario type, stance spectrum, archetypes, tick count."
-- "Generator spawns agents in parallel — each archetype becomes an agent with persona, bias, rules, and an influence edge to its neighbors."
-- "The Engine runs the tick loop. Every tick, every agent fires a parallel LLM call. They all read last tick's world — not each other's current thinking — so there's no turn-order bias. The UI streams these ticks live over Server-Sent Events."
-- "After the run, the Evaluator asks per agent: was the reasoning coherent? If no, the Temple amends the rules. The amended agents re-enter the next run."
-- "Everything sits on top of an LLMClient protocol — Anthropic, OpenAI, Groq, or Ollama, swapped by environment variable."
+### Arrow-by-arrow (20s)
+- "Prompt in → Analyzer — one LLM call to produce a typed blueprint."
+- "Generator spawns agents in parallel — persona, bias, rules, influence edges."
+- "Engine runs the tick loop. Every tick, every agent fires a parallel LLM call. They all read last tick's world, so there's no turn-order bias. UI streams over SSE."
+- "After the run, Evaluator asks per agent: was this reasoning coherent? If not, Temple amends the rules. Amended agents re-enter the next run. Dashed red is that loop."
+- "Underneath, LLMClient protocol — Anthropic, OpenAI, Groq, Ollama — swapped by env var."
 
-### If you have time, flag these from the numbered list below the diagram:
-- **"Structure enforcement"** — "Every tick returns strict JSON. Pydantic validates. Parse fails fall back to a neutral tick instead of crashing the run."
-- **"Emotion as feedback"** — "Emotion isn't decoration. It's stamped into memory and bleeds into the next tick. Anxious agents stay anxious. Confident ones double down. This is how herding emerges naturally."
-- **"Bias in two layers"** — "The LLM gets text cues — framing, availability, authority. Then a mechanical function *nudges* the proposed stance — anchoring pulls toward initial, bandwagon toward aggregate, loss aversion asymmetric. Dialogue *and* trajectory both reflect the bias."
-- **"Memory compression"** — "At 20 ticks we don't dump the full history. We keep the anchor tick, any pivot bigger than 0.10, and the last 3 ticks. Honest history without bloating context."
-- **"Coherence, not accuracy"** — "We don't have ground truth for 'what will people think.' So we measure the strongest honest thing — did the reasoning explain the action?"
-- **"Temple of Learning"** — "Amendments are additive by default. At 8-rule cap, Temple edits existing rules instead of just piling on. It also tunes bias_strength up or down."
-- **"Ensemble for variability"** — "Same agents, fresh tick loops. Three runs agreeing is signal. Three runs disagreeing is genuine uncertainty — and we report it as *low* confidence. This is the honest answer to 'how sure are you?'"
+### The nine mechanisms, expanded (read the one-liner, add this)
 
----
+1. **Structure is non-negotiable.** "Every tick returns strict JSON — stance, action, emotion, reasoning, message, influence target. Pydantic validates. Parse failures substitute a neutral confused tick instead of crashing."
 
-## Section 6 · Design decisions — 30 to 45 seconds
+2. **Emotion is feedback.** "Emotion isn't decoration. Whatever an agent feels this tick gets stamped into memory and bleeds into the next tick's prompt. Anxious agents stay anxious. That's how herding and momentum emerge, same as in a room."
 
-> Don't read the whole table. Pick 3 that match what the audience cares about.
+3. **Bias in two layers.** "LLM gets behavioural cues in the prompt — how a framing-effect person hears a proposal. Then a mechanical function nudges the proposed stance. Anchoring pulls toward initial, bandwagon toward aggregate, loss aversion is asymmetric. Dialogue and trajectory both reflect the bias."
 
-### If the audience is engineers, emphasize:
-- "Parallel tick calls — cuts latency N× and eliminates turn-order bias."
-- "LLMClient protocol — structural typing, any object with `generate(prompt) → dict` plugs in."
-- "SSE end-to-end — ticks render as they stream, no blocking one-shots."
+4. **Guardrails keep runs stable.** "This was the biggest risk to solve. Stances clamped to 0.0 to 1.0. Bias coefficients capped so no single pull can swing more than 0.15 in a tick. Memory compressed to anchor plus pivots plus last three ticks. Rules cap at 8 per agent, after that Temple edits. Malformed influence targets fall back to null instead of hallucinated agents. Small mechanisms, but together they keep 20-tick runs stable."
 
-### If the audience is product / founders, emphasize:
-- "Ensemble for variability — we don't pretend one run is the answer."
-- "Backtest for calibration — against known outcomes, we score direction and error."
-- "Two-layer bias — dialogue and dynamics both reflect the bias."
+5. **Parallel ticks.** "All agents reason simultaneously against last tick's world. Kills turn-order bias. Cuts wall-clock by N times."
+
+6. **Coherence is the honest metric.** "We don't have ground truth for 'what will people think.' So we measure the strongest honest thing — did the stated reasoning explain the action? Flag only direct contradictions, self-contradictions within a tick, or large shifts with empty reasoning."
+
+7. **Temple rewrites failures.** "Failing agents get 1 to 3 new rules. At 8-rule cap, Temple edits instead. Also recommends raising or lowering bias_strength. Amended agent re-enters the next run carrying the lesson."
+
+8. **Ensemble quantifies uncertainty.** "One run is an anecdote. Three runs agreeing is signal. Three disagreeing is genuine uncertainty — and we report it as low confidence. That's what calibrated actually looks like."
+
+9. **Backtest is the accuracy check.** "When history has a known outcome, we run blind and score direction with a 0.1 neutral band, aggregate error, and confidence match. Turns coherent into correct where that's possible."
 
 ---
 
-## Section 7 · Limitations — 30 to 45 seconds
+## Section 6 · Design decisions — 30 seconds
 
-> Pick **two** cards. Don't read all six. Pair it with what's next.
+> Don't read the whole list. Pick three that match the audience.
 
-- **Rate limits:** "Free-tier Groq hit 40+ back-to-back 429s during a 6-agent run. Retry-with-backoff works, but stretches 30s to 90s. Next: adaptive concurrency per provider tier."
-- **Coherence ≠ correctness:** "A run can be 100% coherent and still wrong. That's why backtesting is wired in — with a known outcome, we score direction and error. Next: grow the corpus."
-- **Small-N panel:** "Six agents is a boardroom, not a market. Next: crowd particles driven by aggregate dynamics, with named agents riding on top."
+**For engineers:** parallel per-tick calls, LLMClient protocol, SSE end-to-end.
+**For product:** ensemble for variability, backtest for calibration, two-layer bias.
+**For researchers:** coherence over accuracy, hand-authored catalog, additive amendment.
 
 ---
 
-## Section 8 · Connect / close — 15 to 20 seconds
+## Section 7 · Limitations — 30 seconds
 
-- "One meme for the road — because predictions are hard, especially about the future."
-- "Left QR is my LinkedIn — I'd love to talk if any of this landed for you."
-- "Right QR is the repo — it's public, Apache 2.0, and the README walks you through running it locally in two minutes."
+> Pick two cards. Don't read all six.
+
+- "Rate limits: free-tier providers 429 under parallel ticks. Retry with backoff works, but a 30s run stretches to 90."
+- "Coherence is not correctness. A run can be internally consistent and still wrong. Backtesting helps where history exists."
+- "Six agents is a boardroom, not a market. The roadmap is crowd particles for the mass with named agents on top."
+
+---
+
+## Section 8 · Close — 10 to 15 seconds
+
+- "Meme on the left: are you this guy? If so, we should talk."
+- "Middle QR is my LinkedIn. Right QR is the repo — public, Apache 2.0."
 - "Thanks."
 
 ---
 
-## Safety net — if you run over time
+## Safety nets
 
-Drop these first, in this order:
-1. Skip Oracle Loop demo beat — jump straight to the verdict.
-2. Skip Design decisions section entirely — the architecture diagram already covered the key ones.
-3. Collapse Limitations to one card (rate limits).
-4. Skip the meme — go straight to QR codes.
+### Running over
+1. Skip Oracle Loop demo beat.
+2. Skip Design Decisions entirely (arch already covered them).
+3. Collapse Limitations to one card.
 
-## Safety net — if you run under time
-
-Add these, in this order:
-1. Run Oracle Loop live and point at the coherence-curve improvement.
-2. Expand on emotion feedback: "Watch this anxious agent — on tick 5 they went from cautious anxiety to determined frustration. That's not scripted; that's the memory loop."
-3. Walk through one agent's tick history in AgentDetail.
-4. Ensemble demo — "Three runs. Two agree on support. One flips to low confidence. That's us being honest about uncertainty."
-
----
-
-## One-liner closers for Q&A
-
-- **"Why not just use a single LLM?"** → "One LLM is one voice. Pythia is a panel. The disagreement is the value."
-- **"How do you know it's right?"** → "We measure two things: coherence within a run, and calibration against known outcomes when ground truth exists. We don't pretend one run is the truth — that's why ensemble mode exists."
-- **"Can it scale to 1000 agents?"** → "Not today. Six-to-eight named agents is where it shines. The roadmap is crowd particles for the mass, named agents for the characters."
-- **"Why not GPT-4 for everything?"** → "Cost. Haiku and Llama 3.1 8B are 10× cheaper and handle tick-level reasoning well. The LLMClient protocol means you can route per-archetype — cheap for reactive, precise for analytical."
-- **"What's next?"** → "God's Eye View — injecting new variables mid-simulation. And a tick-triggered influence graph that rewires under stress."
+### Running under
+1. Run Oracle Loop live, point at the coherence curve.
+2. Expand the emotion loop: "This anxious agent shifted from cautious anxiety to determined frustration on tick 5. That's memory loop, not scripting."
+3. Walk one agent's tick history in detail.
+4. Ensemble demo: "Three runs. Two agree. One flips. Reported as low confidence."

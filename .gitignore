@@ -81,6 +81,9 @@ htmlcov/
 # Tool artifacts
 .playwright-mcp/
 
+# Local-only presentation prep (Q&A cheat sheet kept off GitHub)
+docs/presentation-qa.md
+
 # Screenshots / local images
 *.png
 *.jpg

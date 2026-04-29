@@ -24,7 +24,6 @@
   h3 { font-size: 19px; color: #1c1814; }
   p  { font-size: 18px; color: #3b332d; margin-bottom: 12px; }
   .lead { font-size: 21px; color: #4a4038; font-style: italic; }
-  .tiny { font-size: 15px; color: #7a6f62; }
 
   section { padding: 52px 0 40px; border-bottom: 1px solid #e3d9c8; }
   section:last-of-type { border-bottom: none; }
@@ -53,43 +52,45 @@
     box-shadow: 0 8px 28px rgba(165, 138, 91, 0.35);
   }
 
-  /* ── Feature grids ────────────────────────────────────────────── */
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 16px; }
-  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px; }
-  @media (max-width: 720px) {
-    .grid-2, .grid-3 { grid-template-columns: 1fr; }
-    h1 { font-size: 42px; }
-    h2 { font-size: 30px; }
+  /* ── Who am I ─────────────────────────────────────────────────── */
+  .who-photo {
+    width: 100%; max-width: 520px; margin: 22px auto 16px;
+    background: #fffaf0; border: 1px dashed #c9a963; border-radius: 10px;
+    min-height: 280px; display: flex; align-items: center; justify-content: center;
+    padding: 14px; overflow: hidden;
   }
+  .who-photo img { max-width: 100%; max-height: 420px; border-radius: 6px; }
+  .who-lines { text-align: center; margin-top: 10px; }
+  .who-lines p { font-size: 19px; margin: 2px 0; }
 
-  .card {
-    background: #fffaf0; border: 1px solid #e3d9c8; border-radius: 8px;
-    padding: 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  /* ── What: one-line bullets ───────────────────────────────────── */
+  .bullets { list-style: none; padding: 0; margin-top: 14px; }
+  .bullets li {
+    padding: 10px 14px 10px 34px; position: relative; font-size: 17px; color: #2a2420;
+    background: #fffaf0; border: 1px solid #e3d9c8; border-radius: 6px; margin-bottom: 8px;
   }
-  .card h3 { font-size: 18px; margin-bottom: 6px; }
-  .card p  { font-size: 16px; color: #4a4038; margin: 0; }
+  .bullets li::before {
+    content: "◆"; position: absolute; left: 12px; top: 10px; color: #a58a5b; font-size: 12px;
+  }
+  .bullets li b { color: #6a5232; font-weight: 600; }
 
-  /* ── Who-am-I row ─────────────────────────────────────────────── */
-  .who {
-    display: grid; grid-template-columns: 180px 1fr; gap: 28px;
-    align-items: center; margin-top: 20px;
+  /* ── Problem statement box ───────────────────────────────────── */
+  .problem-box {
+    background: #f0e6d5; border-left: 3px solid #a58a5b; border-radius: 4px;
+    padding: 14px 18px; margin: 14px 0;
   }
-  @media (max-width: 720px) { .who { grid-template-columns: 1fr; text-align: center; justify-items: center; } }
-  .monogram {
-    width: 180px; height: 180px; border-radius: 50%;
-    background: linear-gradient(135deg, #c9a963, #8a6f3a);
-    display: flex; align-items: center; justify-content: center;
-    color: #fffaf0; font-family: "Playfair Display", Georgia, serif;
-    font-size: 68px; font-weight: 600; letter-spacing: 2px;
-    box-shadow: 0 10px 30px rgba(165, 138, 91, 0.35);
-    flex-shrink: 0;
+  .problem-box .label {
+    font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: #6a5232; font-weight: 600; margin-bottom: 4px;
   }
-  .who p { font-size: 19px; }
+  .problem-box .statement { font-size: 18px; color: #1c1814; font-weight: 500; margin: 0; }
 
-  /* Image slot shown BELOW Who am I text */
-  .img-below {
-    margin-top: 22px;
-  }
+  /* ── Stats row ───────────────────────────────────────────────── */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
+  @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat { text-align: center; padding: 14px 8px; background: #fffaf0; border-radius: 8px; border: 1px solid #e3d9c8; }
+  .stat .num { font-family: "Playfair Display", Georgia, serif; font-size: 32px; color: #a58a5b; font-weight: 600; }
+  .stat .lbl { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: #7a6f62; margin-top: 2px; }
 
   /* ── Why Pythia layout ────────────────────────────────────────── */
   .why-layout {
@@ -112,25 +113,13 @@
     font-style: normal; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
   }
 
-  /* ── Demo gallery ─────────────────────────────────────────────── */
+  /* ── Demo gallery (2-up) ─────────────────────────────────────── */
   .demo-gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
   @media (max-width: 720px) { .demo-gallery { grid-template-columns: 1fr; } }
-  .demo-gallery .img-slot { min-height: 180px; }
+  .demo-gallery .img-slot { min-height: 240px; }
   .demo-gallery figcaption {
     text-align: center; font-size: 15px; color: #6a5e52; margin-top: 8px; font-style: italic;
   }
-
-  /* ── Numbered why cards (replaces vs problem/answer) ──────────── */
-  .why-stack { display: grid; gap: 12px; margin-top: 16px; }
-  .why-card {
-    background: #fffaf0; border: 1px solid #e3d9c8; border-radius: 8px;
-    padding: 16px 18px;
-  }
-  .why-card h4 {
-    font-family: "Playfair Display", Georgia, serif; font-size: 17px;
-    color: #1c1814; margin-bottom: 4px;
-  }
-  .why-card p { font-size: 15px; color: #3b332d; margin: 0; }
 
   /* ── Architecture diagram ────────────────────────────────────── */
   .diagram {
@@ -140,10 +129,10 @@
   .diagram svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
   .diagram-caption { text-align: center; font-size: 15px; color: #7a6f62; font-style: italic; margin-top: 8px; }
 
-  /* ── Mechanism list (cue-style) ──────────────────────────────── */
+  /* ── Mechanism list (one-line, numbered) ─────────────────────── */
   .mech { list-style: none; padding: 0; margin-top: 14px; counter-reset: mechcount; }
   .mech li {
-    padding: 12px 16px 12px 42px; position: relative; font-size: 16px; color: #2a2420;
+    padding: 12px 16px 12px 44px; position: relative; font-size: 17px; color: #2a2420;
     background: #fffaf0; border: 1px solid #e3d9c8; border-radius: 6px; margin-bottom: 10px;
   }
   .mech li::before {
@@ -157,21 +146,21 @@
   }
   .mech b { color: #6a5232; font-weight: 600; }
 
-  /* ── Design decision definition list ─────────────────────────── */
-  .dd { display: grid; grid-template-columns: 220px 1fr; gap: 10px 16px; margin-top: 14px; font-size: 16px; }
+  /* ── Design decisions (compact dl) ───────────────────────────── */
+  .dd { display: grid; grid-template-columns: 240px 1fr; gap: 8px 16px; margin-top: 14px; font-size: 16px; }
   @media (max-width: 720px) { .dd { grid-template-columns: 1fr; } }
-  .dd .term { font-weight: 600; color: #6a5232; padding: 8px 0 8px 10px; border-left: 2px solid #c9a963; }
-  .dd .defn { color: #3b332d; padding: 8px 0; }
+  .dd .term { font-weight: 600; color: #6a5232; padding: 6px 0 6px 10px; border-left: 2px solid #c9a963; }
+  .dd .defn { color: #3b332d; padding: 6px 0; }
 
-  /* ── Limitation cards (simplified: no sub-cards, no next, no accent) ── */
+  /* ── Limitations (one-liners) ────────────────────────────────── */
   .lim {
     background: #fffaf0; border: 1px solid #e3d9c8;
-    border-radius: 6px; padding: 14px 18px; margin-bottom: 10px;
+    border-radius: 6px; padding: 12px 16px; margin-bottom: 8px;
   }
-  .lim h3 { font-size: 17px; margin-bottom: 4px; }
+  .lim h3 { font-size: 16px; margin-bottom: 2px; }
   .lim p { font-size: 15px; margin: 0; color: #4a4038; }
 
-  /* ── End-of-deck connect block ───────────────────────────────── */
+  /* ── Connect row ─────────────────────────────────────────────── */
   .connect { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-top: 20px; }
   @media (max-width: 720px) { .connect { grid-template-columns: 1fr; } }
   .qr-slot {
@@ -179,25 +168,19 @@
     padding: 18px; text-align: center;
   }
   .qr-slot .qr-image {
-    width: 160px; height: 160px; margin: 0 auto 10px;
+    width: 100%; aspect-ratio: 1 / 1; max-width: 220px; margin: 0 auto 12px;
     background: #f6f1e7; border: 1px dashed #c9a963; border-radius: 6px;
     display: flex; align-items: center; justify-content: center;
     color: #a58a5b; font-size: 14px; font-style: italic;
     overflow: hidden;
   }
-  .qr-slot .qr-image img { max-width: 100%; max-height: 100%; }
-  .qr-slot h3 { font-size: 17px; margin-bottom: 4px; }
+  .qr-slot .qr-image img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
+  .qr-slot h3 { font-size: 17px; margin-bottom: 2px; }
   .qr-slot p { font-size: 15px; color: #6a5e52; margin: 0; }
   .qr-slot.meme .qr-image {
-    width: 100%; height: 200px; border: 1px dashed #c9a963;
+    width: 100%; aspect-ratio: auto; max-width: none; height: 220px;
   }
-
-  /* ── Stat badges ─────────────────────────────────────────────── */
-  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
-  @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
-  .stat { text-align: center; padding: 14px 8px; background: #fffaf0; border-radius: 8px; border: 1px solid #e3d9c8; }
-  .stat .num { font-family: "Playfair Display", Georgia, serif; font-size: 32px; color: #a58a5b; font-weight: 600; }
-  .stat .lbl { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: #7a6f62; margin-top: 2px; }
+  .qr-slot.meme .qr-image img { object-fit: cover; padding: 0; }
 
   /* ── CTA row ─────────────────────────────────────────────────── */
   .cta-row { display: flex; gap: 10px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
@@ -209,17 +192,6 @@
   .cta-primary { background: #1c1814; color: #fffaf0; }
   .cta-primary:hover { transform: translateY(-1px); }
   .cta-ghost { background: transparent; color: #1c1814; border: 1px solid #1c1814; }
-
-  /* ── Problem statement highlight block ───────────────────────── */
-  .problem-box {
-    background: #f0e6d5; border-left: 3px solid #a58a5b; border-radius: 4px;
-    padding: 14px 18px; margin: 14px 0;
-  }
-  .problem-box .label {
-    font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
-    color: #6a5232; font-weight: 600; margin-bottom: 4px;
-  }
-  .problem-box .statement { font-size: 17px; color: #1c1814; font-weight: 500; margin: 0; }
 
   footer { text-align: center; padding: 40px 20px 20px; color: #7a6f62; font-size: 15px; font-style: italic; }
 </style>
@@ -256,19 +228,14 @@
   <section id="who">
     <span class="kicker">01 · Who</span>
     <h2>Who am I?</h2>
-    <div class="who">
-      <div class="monogram" aria-hidden="true">UB</div>
-      <div>
-        <p><strong>Utkarsh Bajaj (UB).</strong></p>
-        <p>Amazon. AI Builder.</p>
-      </div>
+
+    <div class="who-photo">
+      <img src="assets/utkarsh.jpg" alt="Utkarsh Bajaj" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'placeholder\'>Your photo goes here<small>docs/assets/utkarsh.jpg</small></div>';" />
     </div>
 
-    <!-- IMAGE: Drop your photo at docs/assets/utkarsh.jpg. Shows BELOW the text. -->
-    <div class="img-below">
-      <div class="img-slot" style="min-height: 280px;">
-        <img src="assets/utkarsh.jpg" alt="Utkarsh Bajaj" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'placeholder\'>Your photo goes here<small>docs/assets/utkarsh.jpg</small></div>';" />
-      </div>
+    <div class="who-lines">
+      <p><strong>Utkarsh Bajaj (UB).</strong></p>
+      <p>Amazon. AI Builder.</p>
     </div>
   </section>
 
@@ -276,29 +243,18 @@
   <section id="what">
     <span class="kicker">02 · What</span>
     <h2>What is Pythia?</h2>
-    <p><strong>Pythia is a solo passion project.</strong> Solo full-stack, built for fun, built to answer a question that kept bothering me.</p>
 
     <div class="problem-box">
       <div class="label">The problem it solves</div>
       <p class="statement">Decision making. Play it out before making it.</p>
     </div>
 
-    <p>You describe a decision in plain English. Pythia spawns a panel of agents, each with a persona, a cognitive bias, and relationships to the others. They argue tick by tick. You watch the stances shift, the arguments land, the coalitions form, before a single real dollar or hour gets committed.</p>
-
-    <div class="grid-3">
-      <div class="card">
-        <h3>Plain English in</h3>
-        <p>No schema, no form. One LLM call turns the prompt into a typed blueprint.</p>
-      </div>
-      <div class="card">
-        <h3>Agents with teeth</h3>
-        <p>16 cognitive biases, an influence graph, and memory that compresses as it grows.</p>
-      </div>
-      <div class="card">
-        <h3>Self correcting</h3>
-        <p>Coherence evaluator, Temple of Learning, amended rules, re-run.</p>
-      </div>
-    </div>
+    <ul class="bullets">
+      <li><b>Solo passion project.</b> Full-stack, built for fun.</li>
+      <li><b>Plain English in.</b> Describe a decision, get a panel.</li>
+      <li><b>Agents with teeth.</b> 16 biases, influence graph, compressed memory.</li>
+      <li><b>Self-correcting.</b> Evaluator flags incoherence, Temple rewrites rules, re-run.</li>
+    </ul>
 
     <div class="stats">
       <div class="stat"><div class="num">16</div><div class="lbl">Biases</div></div>
@@ -313,34 +269,14 @@
     <span class="kicker">03 · Why</span>
     <h2>Why Pythia?</h2>
     <div class="why-layout">
-      <div>
-        <p>Before we even get to LLMs, the real question is: <em>why simulate at all?</em></p>
-
-        <div class="why-stack">
-          <div class="why-card">
-            <h4>1. Why simulations</h4>
-            <p>Every decision has second-order effects you cannot talk your way through in a meeting. Simulation is how engineers stress-test bridges, how epidemiologists model outbreaks, how pilots train for failure modes. The point is to surface the dynamics you would otherwise discover the expensive way, after committing.</p>
-          </div>
-          <div class="why-card">
-            <h4>2. Why LLMs are good at this</h4>
-            <p>The hard part of human simulation used to be authoring believable personas with internally consistent reasoning. LLMs do that natively. Give one a persona, a bias, a history, and a world state, and it will reason in character across hundreds of ticks. This used to take a research team.</p>
-          </div>
-          <div class="why-card">
-            <h4>3. What makes Pythia robust</h4>
-            <p>An LLM improvising personas drifts. Pythia pins it down. Every bias comes from a canonical catalog with scientific citations. Every stance passes through a mechanical correction function. Every run is evaluated for coherence, and incoherent agents get rewritten before they re-enter. The LLM is the actor. The engine is the director.</p>
-          </div>
-          <div class="why-card">
-            <h4>4. Different from asking the best LLM to roleplay</h4>
-            <p>Asking GPT-4 to "simulate six stakeholders" gives you one voice doing six impressions. In Pythia, each agent is its own prompt, its own memory, its own bias, reasoning in parallel against last tick's world. They disagree because they actually have different contexts. Then ensemble mode runs the whole thing three times so you see where the system is stable and where it is fragile.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- IMAGE: side visual. Drop at docs/assets/why-pythia.jpg. -->
-      <div>
-        <div class="img-slot" style="min-height: 380px;">
-          <img src="assets/why-pythia.jpg" alt="Why Pythia" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'placeholder\'>Why Pythia visual<small>docs/assets/why-pythia.jpg</small></div>';" />
-        </div>
+      <ul class="bullets" style="margin-top: 0;">
+        <li><b>Why simulate at all.</b> Surface second-order dynamics before you pay for them.</li>
+        <li><b>Why LLMs fit.</b> They author consistent personas natively, no research team needed.</li>
+        <li><b>Why Pythia is robust.</b> Canonical biases, mechanical stance correction, coherence loop.</li>
+        <li><b>Why not just roleplay with one LLM.</b> One voice doing impressions collapses to one viewpoint.</li>
+      </ul>
+      <div class="img-slot" style="min-height: 320px;">
+        <img src="assets/why-pythia.jpg" alt="Why Pythia" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'placeholder\'>Why Pythia visual<small>docs/assets/why-pythia.jpg</small></div>';" />
       </div>
     </div>
   </section>
@@ -350,7 +286,7 @@
     <span class="kicker">Intermission</span>
     <h2>→ Live demo</h2>
     <p style="max-width: 540px; margin: 0 auto 18px; color: #4a4038;">
-      Watch a decision play out: agents spawn, argue, shift, and settle. Oracle Loop shows self-correction across runs.
+      Agents spawn, argue, shift, and settle. Oracle Loop shows self-correction.
     </p>
     <div class="cta-row">
       <a class="cta cta-primary" href="http://localhost" target="_blank" rel="noopener">Open the Oracle</a>
@@ -360,27 +296,15 @@
     <div class="demo-gallery">
       <figure>
         <div class="img-slot">
-          <img src="assets/demo-graphs.png" alt="Stance graph over ticks" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'placeholder\'>Stance graphs<small>docs/assets/demo-graphs.png</small></div>';" />
-        </div>
-        <figcaption>Stance trajectories, agents moving tick by tick</figcaption>
-      </figure>
-      <figure>
-        <div class="img-slot">
           <img src="assets/demo-verdict.png" alt="Verdict report" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'placeholder\'>Verdict report<small>docs/assets/demo-verdict.png</small></div>';" />
         </div>
-        <figcaption>Verdict report, arguments for/against and key risks</figcaption>
-      </figure>
-      <figure>
-        <div class="img-slot">
-          <img src="assets/demo-method.png" alt="Oracle method report" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'placeholder\'>Method report<small>docs/assets/demo-method.png</small></div>';" />
-        </div>
-        <figcaption>Method report, how the oracle arrived at the verdict</figcaption>
+        <figcaption>Verdict report</figcaption>
       </figure>
       <figure>
         <div class="img-slot">
           <img src="assets/demo-agent.png" alt="Agent behaviour detail" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'placeholder\'>Agent behaviour<small>docs/assets/demo-agent.png</small></div>';" />
         </div>
-        <figcaption>Agent detail, persona, bias, rules, and tick-by-tick reasoning</figcaption>
+        <figcaption>Agent detail</figcaption>
       </figure>
     </div>
   </section>
@@ -389,7 +313,7 @@
   <section id="arch">
     <span class="kicker">04 · Architecture</span>
     <h2>How it actually works</h2>
-    <p>Five layers. One LLM abstraction. Everything observable.</p>
+    <p>Five layers, one LLM abstraction, everything observable.</p>
 
     <div class="diagram">
       <svg viewBox="0 0 820 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pythia architecture">
@@ -412,7 +336,6 @@
           .legend { font-family: "Inter", sans-serif; font-size: 12px; }
         </style>
 
-        <!-- Row 1: Prompt → Analyzer → Generator -->
         <rect x="40" y="40" width="160" height="70" rx="10" class="box-highlight"/>
         <text x="120" y="70" text-anchor="middle" class="label">Prompt</text>
         <text x="120" y="90" text-anchor="middle" class="sublabel">plain English</text>
@@ -425,7 +348,6 @@
         <text x="700" y="70" text-anchor="middle" class="label">Generator</text>
         <text x="700" y="90" text-anchor="middle" class="sublabel">agents, bias, graph</text>
 
-        <!-- Row 2: UI ← Engine → Evaluator -->
         <rect x="40" y="200" width="160" height="82" rx="10" class="box"/>
         <text x="120" y="230" text-anchor="middle" class="label">UI</text>
         <text x="120" y="250" text-anchor="middle" class="sublabel">React + SSE</text>
@@ -441,24 +363,20 @@
         <text x="700" y="250" text-anchor="middle" class="sublabel">coherent?</text>
         <text x="700" y="267" text-anchor="middle" class="sublabel">reason ↔ action</text>
 
-        <!-- Row 3: Temple (right side only) -->
         <rect x="620" y="340" width="160" height="82" rx="10" class="box-loop"/>
         <text x="700" y="370" text-anchor="middle" class="label">Temple</text>
         <text x="700" y="390" text-anchor="middle" class="sublabel">add / edit rules</text>
         <text x="700" y="407" text-anchor="middle" class="sublabel">tune bias strength</text>
 
-        <!-- Data flows -->
         <path d="M200 75 L330 75" class="flow" marker-end="url(#arrow)"/>
         <path d="M490 75 L620 75" class="flow" marker-end="url(#arrow)"/>
         <path d="M700 110 L700 160 L410 160 L410 200" class="flow" marker-end="url(#arrow)"/>
         <path d="M330 240 L200 240" class="flow" marker-end="url(#arrow)"/>
         <path d="M490 240 L620 240" class="flow" marker-end="url(#arrow)"/>
 
-        <!-- Self-correction loop (dashed red) -->
         <path d="M700 282 L700 340" class="flow-loop" marker-end="url(#arrow-loop)"/>
         <path d="M620 380 L410 380 L410 282" class="flow-loop" marker-end="url(#arrow-loop)"/>
 
-        <!-- Legend inside diagram box, repositioned so nothing points into empty space -->
         <g transform="translate(40, 455)">
           <line x1="0" y1="0" x2="30" y2="0" class="flow"/>
           <text x="38" y="4" class="legend" fill="#6a5e52">data flow</text>
@@ -466,28 +384,20 @@
           <text x="198" y="4" class="legend" fill="#b85c3e">oracle self-correction loop</text>
         </g>
       </svg>
-      <div class="diagram-caption">Dashed red is the oracle loop. Incoherent agents cycle through Temple then Engine until all pass, or 5 runs.</div>
+      <div class="diagram-caption">Dashed red is the oracle loop. Incoherent agents cycle through Temple then Engine, up to 5 runs.</div>
     </div>
 
     <h3 style="margin-top: 30px; margin-bottom: 6px;">The nine mechanisms that matter</h3>
     <ol class="mech">
-      <li><b>Structure is non-negotiable.</b> Every tick, every agent has to return strict JSON with stance, action, emotion, reasoning, message, and influence target. Pydantic checks it. If an LLM hallucinates a malformed response, the engine logs it and substitutes a neutral "confused" tick instead of crashing the whole run.</li>
-
-      <li><b>Emotion is part of the feedback loop.</b> It is not cosmetic. Whatever emotion an agent reports gets stamped into their memory and replayed in the next tick's prompt. Anxious agents stay anxious. Confident ones double down. That is how herd behaviour and momentum actually emerge, the same way they do in a room.</li>
-
-      <li><b>Bias works in two layers.</b> The prompt carries behavioural cues (how a framing-effect person hears a proposal, what an authority-bias person notices). Then after the LLM proposes a stance, a mechanical function nudges it. Anchoring pulls toward the starting position, bandwagon pulls toward the aggregate, loss aversion amplifies downside moves and dampens upside ones. The dialogue shows the bias, and the trajectory shows the bias.</li>
-
-      <li><b>Guardrails keep things from going haywire.</b> This was the biggest risk to solve. Stances are clamped to 0.0 to 1.0 so they cannot run off. Bias coefficients are capped so no single pull can swing a stance more than 0.15 in a tick. Agent memory is compressed to anchor plus pivots plus the last three ticks, so prompts do not bloat as the run gets longer. Rules cap at eight per agent, and after that the Temple has to edit existing ones instead of piling on more. Malformed influence targets fall back to null instead of naming a hallucinated agent. Small mechanisms, but together they keep 20-tick runs stable.</li>
-
-      <li><b>Parallel ticks, not turn-taking.</b> Every agent reasons simultaneously, reading last tick's world state. Nobody gets to react to this tick's in-progress updates, which kills the turn-order bias you get in sequential simulations. It also cuts wall-clock time by N times.</li>
-
-      <li><b>Coherence is the honest metric.</b> We cannot measure "was the agent right about what people will think" without ground truth. So we measure the strongest honest thing: did the stated reasoning actually explain the action taken? The evaluator flags three things: direct contradictions, self-contradictions within a single tick, or large stance shifts with empty reasoning. Everything else is allowed, including changing your mind.</li>
-
-      <li><b>The Temple of Learning rewrites failures.</b> When an agent fails coherence, the Temple adds one to three rules that would have caught the slip. At the eight-rule cap, it has to edit or replace existing rules instead of adding more. It also recommends raising or lowering bias_strength, because sometimes the bias was too weak (ignored) or too strong (the agent became a caricature). The amended agent re-enters the next run carrying the lesson.</li>
-
-      <li><b>Ensemble is how we are honest about uncertainty.</b> One run is an anecdote. Three runs that agree on the verdict and confidence is signal. Three runs that disagree means the scenario is genuinely ambiguous, and we report the worst-case confidence rather than cherry-picking the one we like. This is what "calibrated" actually looks like.</li>
-
-      <li><b>Backtest is the accuracy check.</b> When history gives us a known outcome, we run the simulation blind and score three things: did we get the direction right (with a ±0.1 neutral band), what was the aggregate error, and did our confidence level match how clear-cut the outcome really was. Turns "coherent" into "correct" on the cases where that is possible to measure.</li>
+      <li><b>Structure is non-negotiable.</b> Every tick returns strict JSON, Pydantic validated, malformed replies fall back to a neutral tick.</li>
+      <li><b>Emotion is feedback.</b> Whatever an agent feels this tick gets stamped into memory and replayed next tick.</li>
+      <li><b>Bias in two layers.</b> Prompt cues shape reasoning, a mechanical nudge shapes the trajectory.</li>
+      <li><b>Guardrails keep runs stable.</b> Stance clamped 0.0 to 1.0, per-tick nudge capped, memory compressed, rules capped at 8, fuzzy targets fall back to null.</li>
+      <li><b>Parallel ticks, not turn-taking.</b> All agents reason simultaneously against last tick's world, killing turn-order bias.</li>
+      <li><b>Coherence is the honest metric.</b> We score whether reasoning explained the action, not whether the action was right.</li>
+      <li><b>Temple rewrites failures.</b> Incoherent agents get new rules or edited rules and a nudged bias strength before the next run.</li>
+      <li><b>Ensemble quantifies uncertainty.</b> Three runs agreeing is signal, three disagreeing is reported as low confidence.</li>
+      <li><b>Backtest is the accuracy check.</b> Against a known outcome we score direction, aggregate error, and confidence match.</li>
     </ol>
   </section>
 
@@ -497,31 +407,31 @@
     <h2>Why it is built this way</h2>
     <div class="dd">
       <div class="term">Coherence over accuracy</div>
-      <div class="defn">No ground truth for "what will people think." Coherence is the strongest honest signal. Backtest mode adds real accuracy scoring when history exists.</div>
+      <div class="defn">No ground truth for opinion; coherence is the strongest honest signal. Backtest adds accuracy when history exists.</div>
 
       <div class="term">Parallel per-tick LLM calls</div>
-      <div class="defn">Agents see last tick's world, not this one. Turn-order bias eliminated, latency cut by N times.</div>
+      <div class="defn">Agents see last tick's world, eliminating turn-order bias and cutting latency by N times.</div>
 
       <div class="term">Two-layer bias</div>
-      <div class="defn">Text cues shape reasoning, mechanical functions shape trajectory. Dialogue and dynamics both reflect the bias.</div>
+      <div class="defn">Text cues shape reasoning, mechanical functions shape trajectory.</div>
 
       <div class="term">Additive rule amendment</div>
-      <div class="defn">Removing rules makes agents drift generic. Appending keeps every learned nuance. At the 8-rule cap, Temple edits instead.</div>
+      <div class="defn">Appending keeps nuance; at the 8-rule cap, Temple edits instead of inflating.</div>
 
       <div class="term">Ensemble for variability</div>
-      <div class="defn">Same agents, same graph, fresh tick loops. Different orderings and LLM sampling surface where the system is stable versus fragile.</div>
+      <div class="defn">Same agents, fresh tick loops; surfaces where the system is stable vs fragile.</div>
 
       <div class="term">Backtest for calibration</div>
-      <div class="defn">Against a known outcome we score direction (±0.1 neutral band), aggregate error, and confidence match.</div>
+      <div class="defn">Direction (±0.1 neutral band), aggregate error, confidence match.</div>
 
       <div class="term">Hand-authored bias catalog</div>
-      <div class="defn">16 canonical biases with scientific citation plus behavioural cues. No freeform LLM bias names that drift from run to run.</div>
+      <div class="defn">16 canonical biases with citations; no freeform LLM bias names that drift.</div>
 
       <div class="term"><code>LLMClient</code> Protocol</div>
-      <div class="defn">Structural typing. Any object with <code>generate(prompt, system) → dict</code> plugs in. Token-bucket rate limiter per provider.</div>
+      <div class="defn">Structural typing, per-provider token-bucket rate limiter.</div>
 
       <div class="term">SSE end-to-end</div>
-      <div class="defn">UI renders ticks as they stream. No blocking one-shot calls, you watch agents think.</div>
+      <div class="defn">UI renders ticks as they stream, no one-shot blocking calls.</div>
     </div>
   </section>
 
@@ -530,32 +440,12 @@
     <span class="kicker">06 · Limitations &amp; future scope</span>
     <h2>What it can't do yet</h2>
 
-    <div class="grid-2">
-      <div class="lim">
-        <h3>Rate limits throttle demos</h3>
-        <p>Free-tier providers hit back-to-back 429s during parallel ticks. Retry with backoff works, but stretches a 30-second run to 90.</p>
-      </div>
-      <div class="lim">
-        <h3>Coherence is not correctness</h3>
-        <p>A run can be 100% internally consistent and still be wrong about the world. Backtest helps where history exists.</p>
-      </div>
-      <div class="lim">
-        <h3>Small-N panel</h3>
-        <p>Six agents is a boardroom, not a market. Scaling past 20 named agents blows up prompt size and per-tick cost.</p>
-      </div>
-      <div class="lim">
-        <h3>Memory is still a string</h3>
-        <p>Compressed history works today. Longer horizons will need graph summary or vector recall behind the same interface.</p>
-      </div>
-      <div class="lim">
-        <h3>Small LLMs drift</h3>
-        <p>8B-class models sometimes return malformed JSON or repeat prior reasoning. Neutral fallback catches it, but it shows.</p>
-      </div>
-      <div class="lim">
-        <h3>Static influence graph</h3>
-        <p>Relationships are set at generation time and do not evolve. Real opinion networks rewire under stress.</p>
-      </div>
-    </div>
+    <div class="lim"><h3>Rate limits throttle demos.</h3><p>Free-tier providers 429 under parallel ticks.</p></div>
+    <div class="lim"><h3>Coherence is not correctness.</h3><p>Internally consistent can still be wrong.</p></div>
+    <div class="lim"><h3>Small-N panel.</h3><p>Boardroom-scale works; market-scale blows up prompt size.</p></div>
+    <div class="lim"><h3>Memory is still a string.</h3><p>Compressed today; longer horizons need graph or vector recall.</p></div>
+    <div class="lim"><h3>Small LLMs drift.</h3><p>8B-class models sometimes return malformed JSON or repeat prior reasoning.</p></div>
+    <div class="lim"><h3>Static influence graph.</h3><p>Relationships set at generation; real networks rewire under stress.</p></div>
   </section>
 
   <!-- ── 8. CONNECT ────────────────────────────────────── -->
@@ -564,16 +454,13 @@
     <h2>Before you go</h2>
 
     <div class="connect">
-      <!-- MEME: Drop a fun image at docs/assets/meme.jpg (landscape). -->
       <div class="qr-slot meme">
         <div class="qr-image">
           <img src="assets/meme.jpg" alt="Meme" onerror="this.style.display='none'; this.parentElement.innerHTML='Meme goes here<br><small>docs/assets/meme.jpg</small>';" />
         </div>
-        <h3>One for the road</h3>
-        <p>Because predictions are hard, especially about the future.</p>
+        <h3>Are you this guy?</h3>
       </div>
 
-      <!-- LinkedIn QR → docs/assets/qr-linkedin.png -->
       <div class="qr-slot">
         <div class="qr-image">
           <img src="assets/qr-linkedin.png" alt="LinkedIn QR" onerror="this.style.display='none'; this.parentElement.innerHTML='LinkedIn QR<br><small>docs/assets/qr-linkedin.png</small>';" />
@@ -582,7 +469,6 @@
         <p>LinkedIn → Utkarsh Bajaj</p>
       </div>
 
-      <!-- GitHub QR → docs/assets/qr-github.png -->
       <div class="qr-slot">
         <div class="qr-image">
           <img src="assets/qr-github.png" alt="GitHub QR" onerror="this.style.display='none'; this.parentElement.innerHTML='GitHub QR<br><small>docs/assets/qr-github.png</small>';" />

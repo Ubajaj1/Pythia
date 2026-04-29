@@ -21,7 +21,7 @@ Drop these files here, keep the exact filenames. The page shows a graceful place
 ```bash
 # one-time: pip install 'qrcode[pil]'
 python -c "import qrcode; qrcode.make('https://github.com/Ubajaj1/Pythia').save('docs/assets/qr-github.png')"
-python -c "import qrcode; qrcode.make('https://www.linkedin.com/in/YOUR-HANDLE/').save('docs/assets/qr-linkedin.png')"
+python -c "import qrcode; qrcode.make('https://www.linkedin.com/in/utkarsh-bajaj/').save('docs/assets/qr-linkedin.png')"
 ```
 
 ## Running the deck locally
