@@ -69,7 +69,7 @@ Hit **Consult the Oracle** for a single run, or **Oracle Loop ↻** to run up to
 
 **5. Amend** — incoherent agents get additional behavioral rules. They re-enter the next run carrying what they learned. Coherence is plotted across runs.
 
-Ensemble mode runs several parallel simulations with different random seeds and reports the distribution of outcomes. Backtest mode compares a run against a ground-truth outcome you supply.
+Ensemble mode runs several parallel simulations and reports the distribution of outcomes — agreement across runs is signal, disagreement is genuine uncertainty. Backtest mode runs the same pipeline against a known outcome and scores the prediction on direction, aggregate error, and confidence match.
 
 ---
 
