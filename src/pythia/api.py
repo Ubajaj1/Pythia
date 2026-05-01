@@ -107,7 +107,7 @@ def create_app(
                     yield f"data: {json.dumps(event)}\n\n"
             except Exception as exc:
                 logger.exception("Stream error: %s", exc)
-                yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Simulation failed. Check server logs for details.'})}\n\n"
 
         return StreamingResponse(
             event_stream(),
@@ -173,7 +173,7 @@ def create_app(
                     yield f"data: {json.dumps(event)}\n\n"
             except Exception as exc:
                 logger.exception("Oracle stream error: %s", exc)
-                yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Simulation failed. Check server logs for details.'})}\n\n"
 
         return StreamingResponse(
             event_stream(),
@@ -226,7 +226,7 @@ def create_app(
                     yield f"data: {json.dumps(event)}\n\n"
             except Exception as exc:
                 logger.exception("Ensemble stream error: %s", exc)
-                yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Simulation failed. Check server logs for details.'})}\n\n"
 
         return StreamingResponse(
             event_stream(),
@@ -276,7 +276,7 @@ def create_app(
                     yield f"data: {json.dumps(event)}\n\n"
             except Exception as exc:
                 logger.exception("Backtest stream error: %s", exc)
-                yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Simulation failed. Check server logs for details.'})}\n\n"
 
         return StreamingResponse(
             event_stream(),
@@ -307,7 +307,10 @@ def create_app(
 
     @app.get("/api/runs/{run_id}")
     async def get_run(run_id: str) -> dict:
-        run_file = Path(runs_dir) / f"{run_id}.json"
+        runs_path = Path(runs_dir).resolve()
+        run_file = (runs_path / f"{run_id}.json").resolve()
+        if run_file.parent != runs_path:
+            raise HTTPException(status_code=400, detail="Invalid run_id")
         if not run_file.exists():
             raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
         return json.loads(run_file.read_text())

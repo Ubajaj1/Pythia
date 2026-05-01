@@ -160,8 +160,8 @@ class RunResult(BaseModel):
 # --- API request ---
 
 class SimulateRequest(BaseModel):
-    prompt: str
-    context: str | None = None
+    prompt: str = Field(max_length=5000)
+    context: str | None = Field(default=None, max_length=10000)
 
 
 # --- Oracle Loop ---
@@ -189,11 +189,11 @@ class OracleLoopResult(BaseModel):
 
 
 class OracleRequest(BaseModel):
-    prompt: str
-    context: str | None = None
+    prompt: str = Field(max_length=5000)
+    context: str | None = Field(default=None, max_length=10000)
     max_runs: int = Field(default=5, ge=1, le=10)
-    document_text: str | None = None
-    document_name: str | None = None
+    document_text: str | None = Field(default=None, max_length=50000)
+    document_name: str | None = Field(default=None, max_length=100, pattern=r'^[^\n\r]*$')
     agent_count: int | None = Field(default=None, ge=3, le=15)
     tick_count: int | None = Field(default=None, ge=5, le=50)
     preset: str | None = None
@@ -372,14 +372,14 @@ class GroundingContext(BaseModel):
 
 class SimulateRequestWithDocs(BaseModel):
     """Extended simulate request that optionally includes document text for grounding."""
-    prompt: str
-    context: str | None = None
-    document_text: str | None = None
-    document_name: str | None = None
+    prompt: str = Field(max_length=5000)
+    context: str | None = Field(default=None, max_length=10000)
+    document_text: str | None = Field(default=None, max_length=50000)
+    document_name: str | None = Field(default=None, max_length=100, pattern=r'^[^\n\r]*$')
     agent_count: int | None = Field(default=None, ge=3, le=15)
     tick_count: int | None = Field(default=None, ge=5, le=50)
-    preset: str | None = None  # "auto", "fast", "balanced", "deep", or None
-    seed: int | None = None  # for reproducibility — same seed + same prompt → same run
+    preset: str | None = None
+    seed: int | None = None
 
 
 # --- Ensemble Runs (Step 6) ---
@@ -410,10 +410,10 @@ class EnsembleResult(BaseModel):
 
 class EnsembleRequest(BaseModel):
     """API request for ensemble simulation."""
-    prompt: str
-    context: str | None = None
-    document_text: str | None = None
-    document_name: str | None = None
+    prompt: str = Field(max_length=5000)
+    context: str | None = Field(default=None, max_length=10000)
+    document_text: str | None = Field(default=None, max_length=50000)
+    document_name: str | None = Field(default=None, max_length=100, pattern=r'^[^\n\r]*$')
     agent_count: int | None = Field(default=None, ge=3, le=15)
     tick_count: int | None = Field(default=None, ge=5, le=50)
     preset: str | None = None
@@ -424,9 +424,9 @@ class EnsembleRequest(BaseModel):
 
 class GroundTruthOutcome(BaseModel):
     """The known actual outcome for a past event, used to score Pythia's prediction."""
-    aggregate_stance: float = Field(ge=0.0, le=1.0)  # where the real outcome landed on the stance spectrum
-    confidence: str = "moderate"  # how clear-cut the real outcome was
-    notes: str = ""  # free-text explanation of the actual outcome
+    aggregate_stance: float = Field(ge=0.0, le=1.0)
+    confidence: str = "moderate"
+    notes: str = Field(default="", max_length=2000)
 
 
 class CalibrationScore(BaseModel):
@@ -471,10 +471,10 @@ class CalibrationReport(BaseModel):
 
 class BacktestRequest(BaseModel):
     """API request for running a single backtest (past_event mode)."""
-    prompt: str
-    context: str | None = None
-    document_text: str | None = None
-    document_name: str | None = None
+    prompt: str = Field(max_length=5000)
+    context: str | None = Field(default=None, max_length=10000)
+    document_text: str | None = Field(default=None, max_length=50000)
+    document_name: str | None = Field(default=None, max_length=100, pattern=r'^[^\n\r]*$')
     ground_truth_outcome: GroundTruthOutcome
     agent_count: int | None = Field(default=None, ge=3, le=15)
     tick_count: int | None = Field(default=None, ge=5, le=50)

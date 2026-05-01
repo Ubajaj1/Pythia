@@ -103,7 +103,7 @@
     min-height: 220px; display: flex; align-items: center; justify-content: center;
     padding: 14px; overflow: hidden;
   }
-  .img-slot img { max-width: 100%; max-height: 400px; border-radius: 6px; }
+  .img-slot img { max-width: 100%; max-height: 600px; border-radius: 6px; object-fit: contain; }
   .img-slot .placeholder {
     text-align: center; color: #a58a5b; font-style: italic; font-size: 16px;
     font-family: "Playfair Display", Georgia, serif; padding: 18px;
@@ -116,7 +116,7 @@
   /* ── Demo gallery (2-up) ─────────────────────────────────────── */
   .demo-gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
   @media (max-width: 720px) { .demo-gallery { grid-template-columns: 1fr; } }
-  .demo-gallery .img-slot { min-height: 240px; }
+  .demo-gallery .img-slot { min-height: 400px; }
   .demo-gallery figcaption {
     text-align: center; font-size: 15px; color: #6a5e52; margin-top: 8px; font-style: italic;
   }
