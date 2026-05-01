@@ -25,9 +25,14 @@ ENV/
 data/raw/*
 data/processed/*
 data/ground_truth/*
+data/runs/*.json
+data/logs/
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/ground_truth/.gitkeep
+!data/ground_truth/examples/
+!data/ground_truth/examples/**
+!data/runs/.gitkeep
 
 # Jupyter
 .ipynb_checkpoints/
@@ -71,10 +76,13 @@ htmlcov/
 .worktrees/
 
 # Claude Code — local-only settings (personal permissions, hooks)
-.claude/settings.local.json
+.claude/
 
 # Tool artifacts
 .playwright-mcp/
+
+# Local-only presentation prep (Q&A cheat sheet kept off GitHub)
+docs/presentation-qa.md
 
 # Screenshots / local images
 *.png

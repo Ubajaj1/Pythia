@@ -11,6 +11,9 @@ export function makeInitialState(protagonists) {
     templeIdx: null,
     accuracyHistory: [44],
     accuracy: 44,
+    // crowdStateIndex kept for backward-compat with anything still reading
+    // it directly, but it's no longer authoritative — the live classifier
+    // in crowdState.js reads tick data to decide the real crowd state.
     crowdStateIndex: 0,
     protoStates: protagonists.map(() => ({
       spawned: false,
@@ -32,16 +35,13 @@ export function simReducer(state, action) {
 
     case 'TICK': {
       const tick = state.tick + 1
-      const crowdStateIndex = Math.min(
-        Math.floor((tick / TICKS_PER_RUN) * CROWD_STATES.length),
-        CROWD_STATES.length - 1
-      )
       const protoStates = state.protoStates.map(ps => {
         if (!ps.spawned || ps.inTemple) return ps
         const delta = (Math.random() - 0.46) * 9
         return { ...ps, conf: Math.max(8, Math.min(97, ps.conf + delta)) }
       })
-      return { ...state, tick, crowdStateIndex, protoStates }
+      // Keep crowdStateIndex unchanged — it's a legacy field now.
+      return { ...state, tick, protoStates }
     }
 
     case 'SEND_TO_TEMPLE': {

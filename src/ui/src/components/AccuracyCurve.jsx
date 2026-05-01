@@ -18,11 +18,11 @@ export default function AccuracyCurve({ history }) {
 
   return (
     <footer style={{
-      height: 64,
+      height: 130,
       borderTop: '1px solid var(--border)',
       display: 'flex',
       alignItems: 'center',
-      padding: '0 28px',
+      padding: '12px 28px',
       gap: 18,
       flexShrink: 0,
     }}>
@@ -33,60 +33,60 @@ export default function AccuracyCurve({ history }) {
       >
         <div style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: 8,
+          fontSize: 10,
           letterSpacing: '0.14em',
           textTransform: 'uppercase',
-          color: 'var(--text-ui)',
+          color: '#FFFFFF',
           whiteSpace: 'nowrap',
-          lineHeight: 1.6,
+          lineHeight: 1.55,
         }}>
           Coherence<br />Score
         </div>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--gold-dim)', marginTop: 2 }}>ⓘ</div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--gold)', marginTop: 3 }}>ⓘ</div>
         {showTooltip && (
           <div style={{
             position: 'absolute',
             bottom: '100%',
             left: 0,
-            width: 220,
+            width: 240,
             background: '#1a1a17',
-            border: '1px solid #2a2a25',
+            border: '1px solid #6a6a60',
             padding: '8px 10px',
-            fontSize: 10,
-            color: '#8a8a7a',
-            lineHeight: 1.6,
+            fontSize: 11,
+            color: '#FFFFFF',
+            lineHeight: 1.55,
             zIndex: 10,
             pointerEvents: 'none',
             marginBottom: 6,
           }}>
-            Measures whether each agent's actions matched their stated reasoning — internal self-consistency, not a comparison to real-world outcomes.
+            Whether agent actions matched their stated reasoning — internal self-consistency.
           </div>
         )}
       </div>
 
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
-        style={{ flex: 1, height: 32, overflow: 'visible' }}>
+        style={{ flex: 1, height: 100, overflow: 'visible' }}>
         <defs>
           <linearGradient id="acc-grad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#C4A96A" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#C4A96A" stopOpacity="0" />
+            <stop offset="0%" stopColor="#F5D98A" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="#F5D98A" stopOpacity="0" />
           </linearGradient>
         </defs>
         <path d={areaD} fill="url(#acc-grad)" stroke="none" />
-        <polyline points={linePoints} fill="none" stroke="#A88C52"
-          strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <polyline points={linePoints} fill="none" stroke="#F5D98A"
+          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
 
       <div style={{
         fontFamily: 'var(--font-mono)',
-        fontSize: 20,
+        fontSize: 26,
         fontWeight: 300,
-        color: 'var(--text-primary)',
+        color: '#FFFFFF',
         letterSpacing: '-0.03em',
         whiteSpace: 'nowrap',
       }}>
         {current != null ? Math.round(current) : '—'}
-        <span style={{ fontSize: 9, color: 'var(--text-muted)', verticalAlign: 'super', marginLeft: 1 }}>%</span>
+        <span style={{ fontSize: 12, color: '#FFFFFF', verticalAlign: 'super', marginLeft: 1 }}>%</span>
       </div>
     </footer>
   )

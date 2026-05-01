@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 
 const CIRC = 2 * Math.PI * 18   // r=18, circumference ≈ 113.1
 
-function ProtagNode({ protagonist, state, delay }) {
+function ProtagNode({ protagonist, state, delay, onClick, isSelected }) {
   const dotRef = useRef(null)
 
   // Flash animation on return from temple
@@ -25,16 +25,26 @@ function ProtagNode({ protagonist, state, delay }) {
   const translateX = inTemple ? 16 : 0
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12,
-      padding: '10px 0',
-      borderBottom: '1px solid rgba(255,255,255,0.028)',
-      opacity: visible ? opacity : 0,
-      transform: `translateX(${visible ? translateX : -12}px)`,
-      transition: `opacity 0.7s ease ${delay}s, transform 0.7s ease ${delay}s`,
-    }}>
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 0',
+        borderBottom: '1px solid rgba(255,255,255,0.028)',
+        opacity: visible ? opacity : 0,
+        transform: `translateX(${visible ? translateX : -12}px)`,
+        transition: `opacity 0.7s ease ${delay}s, transform 0.7s ease ${delay}s`,
+        cursor: visible ? 'pointer' : 'default',
+        background: isSelected ? 'rgba(168,140,82,0.06)' : 'transparent',
+        borderRadius: 3,
+        marginLeft: -4,
+        marginRight: -4,
+        paddingLeft: 4,
+        paddingRight: 4,
+      }}
+    >
       {/* Ring + Dot */}
       <div style={{ position: 'relative', width: 42, height: 42, flexShrink: 0 }}>
         <svg style={{ position: 'absolute', inset: 0, width: 42, height: 42 }}
@@ -77,16 +87,16 @@ function ProtagNode({ protagonist, state, delay }) {
         <div style={{
           fontFamily: 'var(--font-ui)',
           fontWeight: 600,
-          fontSize: 11.5,
-          color: 'var(--text-primary)',
+          fontSize: 12,
+          color: '#FFFFFF',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
         }}>{protagonist.name}</div>
         <div style={{
           fontFamily: 'var(--font-ui)',
-          fontWeight: 300,
-          fontSize: 9.5,
+          fontWeight: 400,
+          fontSize: 10,
           color: 'var(--gold)',
           marginTop: 2,
           opacity: visible ? 1 : 0,
@@ -94,15 +104,15 @@ function ProtagNode({ protagonist, state, delay }) {
         }}>{protagonist.trait}</div>
         <div style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: 9,
-          color: 'var(--text-muted)',
+          fontSize: 10,
+          color: '#FFFFFF',
           marginTop: 3,
         }}>{visible ? `${Math.round(conf)}%` : '—'}</div>
         {protagonist.amended && (
           <div style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: 8,
-            color: '#7A6A3A',
+            fontSize: 9,
+            color: 'var(--gold)',
             marginTop: 3,
             letterSpacing: '0.06em',
           }}>↺ amended</div>
@@ -132,7 +142,7 @@ function SkeletonNode({ index }) {
   )
 }
 
-export default function Stage({ protagonists, protoStates, loading }) {
+export default function Stage({ protagonists, protoStates, loading, selectedAgentId, onAgentClick }) {
   const showSkeleton = loading || protagonists.length === 0
 
   return (
@@ -140,7 +150,7 @@ export default function Stage({ protagonists, protoStates, loading }) {
       width: 210,
       flexShrink: 0,
       borderRight: '1px solid var(--border)',
-      padding: '20px 18px',
+      padding: '18px 16px',
       overflowY: 'auto',
     }}>
       <style>{`
@@ -152,11 +162,11 @@ export default function Stage({ protagonists, protoStates, loading }) {
 
       <div style={{
         fontFamily: 'var(--font-mono)',
-        fontSize: 8,
+        fontSize: 9,
         letterSpacing: '0.18em',
         textTransform: 'uppercase',
-        color: 'var(--text-ui)',
-        marginBottom: 18,
+        color: '#FFFFFF',
+        marginBottom: 16,
       }}>// The Stage</div>
 
       {showSkeleton ? (
@@ -168,6 +178,8 @@ export default function Stage({ protagonists, protoStates, loading }) {
             protagonist={p}
             state={protoStates[i]}
             delay={i * 0.1}
+            onClick={() => onAgentClick?.(p.id)}
+            isSelected={selectedAgentId === p.id}
           />
         ))
       )}

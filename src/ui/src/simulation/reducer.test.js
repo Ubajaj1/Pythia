@@ -49,11 +49,13 @@ describe('TICK action', () => {
     expect(next.tick).toBe(4)
   })
 
-  it('updates crowdStateIndex based on tick progress', () => {
-    // tick 4/20 = 20% through, floor(0.2 * 5) = 1
-    const state = { ...makeInitialState(MOCK_PROTAGONISTS), tick: 3 }
+  it('no longer drives crowd state from tick progression', () => {
+    // Old behavior: crowdStateIndex advanced 0→1→2→3→4 over 20 ticks
+    // regardless of data. New behavior: reducer leaves crowdStateIndex
+    // untouched; the live classifier in crowdState.js owns that signal.
+    const state = { ...makeInitialState(MOCK_PROTAGONISTS), tick: 3, crowdStateIndex: 0 }
     const next = simReducer(state, { type: 'TICK' })
-    expect(next.crowdStateIndex).toBe(1)
+    expect(next.crowdStateIndex).toBe(0)
   })
 
   it('returns same gen after tick', () => {

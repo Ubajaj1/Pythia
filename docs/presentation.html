@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pythia · Consult the oracle before you decide</title>
+<style>
+  /* ── Reset + base ─────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f6f1e7;
+    color: #2a2420;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 32px 28px 80px; }
+
+  /* ── Typography ───────────────────────────────────────────────── */
+  h1, h2, h3 { font-family: "Playfair Display", Georgia, serif; font-weight: 600; letter-spacing: -0.01em; }
+  h1 { font-size: 60px; line-height: 1.05; }
+  h2 { font-size: 38px; margin-bottom: 14px; color: #1c1814; }
+  h3 { font-size: 19px; color: #1c1814; }
+  p  { font-size: 18px; color: #3b332d; margin-bottom: 12px; }
+  .lead { font-size: 21px; color: #4a4038; font-style: italic; }
+
+  section { padding: 52px 0 40px; border-bottom: 1px solid #e3d9c8; }
+  section:last-of-type { border-bottom: none; }
+  .kicker {
+    display: inline-block; font-size: 13px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: #a58a5b; font-weight: 600; margin-bottom: 10px;
+  }
+
+  /* ── Nav (sticky slim) ────────────────────────────────────────── */
+  nav {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(246, 241, 231, 0.94); backdrop-filter: blur(8px);
+    border-bottom: 1px solid #e3d9c8;
+  }
+  nav .inner { max-width: 920px; margin: 0 auto; padding: 12px 28px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+  nav a { font-size: 15px; color: #6a5e52; text-decoration: none; font-weight: 500; }
+  nav a:hover { color: #a58a5b; }
+  nav .brand { font-family: "Playfair Display", Georgia, serif; font-size: 20px; font-weight: 600; color: #1c1814; margin-right: auto; }
+
+  /* ── Hero ─────────────────────────────────────────────────────── */
+  .hero { padding: 64px 0 40px; text-align: center; border-bottom: 1px solid #e3d9c8; }
+  .hero .tag { font-family: "Playfair Display", Georgia, serif; font-style: italic; font-size: 24px; color: #a58a5b; margin-top: 12px; }
+  .hero .oracle-mark {
+    width: 64px; height: 64px; margin: 0 auto 14px;
+    border-radius: 50%; background: radial-gradient(circle at 30% 30%, #e9c87a, #a58a5b 60%, #6a5232);
+    box-shadow: 0 8px 28px rgba(165, 138, 91, 0.35);
+  }
+
+  /* ── Who am I ─────────────────────────────────────────────────── */
+  .who-photo {
+    width: 100%; max-width: 520px; margin: 22px auto 16px;
+    background: #fffaf0; border: 1px dashed #c9a963; border-radius: 10px;
+    min-height: 280px; display: flex; align-items: center; justify-content: center;
+    padding: 14px; overflow: hidden;
+  }
+  .who-photo img { max-width: 100%; max-height: 420px; border-radius: 6px; }
+  .who-lines { text-align: center; margin-top: 10px; }
+  .who-lines p { font-size: 19px; margin: 2px 0; }
+
+  /* ── What: one-line bullets ───────────────────────────────────── */
+  .bullets { list-style: none; padding: 0; margin-top: 14px; }
+  .bullets li {
+    padding: 10px 14px 10px 34px; position: relative; font-size: 17px; color: #2a2420;
+    background: #fffaf0; border: 1px solid #e3d9c8; border-radius: 6px; margin-bottom: 8px;
+  }
+  .bullets li::before {
+    content: "◆"; position: absolute; left: 12px; top: 10px; color: #a58a5b; font-size: 12px;
+  }
+  .bullets li b { color: #6a5232; font-weight: 600; }
+
+  /* ── Problem statement box ───────────────────────────────────── */
+  .problem-box {
+    background: #f0e6d5; border-left: 3px solid #a58a5b; border-radius: 4px;
+    padding: 14px 18px; margin: 14px 0;
+  }
+  .problem-box .label {
+    font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: #6a5232; font-weight: 600; margin-bottom: 4px;
+  }
+  .problem-box .statement { font-size: 18px; color: #1c1814; font-weight: 500; margin: 0; }
+
+  /* ── Stats row ───────────────────────────────────────────────── */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
+  @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat { text-align: center; padding: 14px 8px; background: #fffaf0; border-radius: 8px; border: 1px solid #e3d9c8; }
+  .stat .num { font-family: "Playfair Display", Georgia, serif; font-size: 32px; color: #a58a5b; font-weight: 600; }
+  .stat .lbl { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: #7a6f62; margin-top: 2px; }
+
+  /* ── Why Pythia layout ────────────────────────────────────────── */
+  .why-layout {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; margin-top: 18px;
+  }
+  @media (max-width: 720px) { .why-layout { grid-template-columns: 1fr; } }
+
+  .img-slot {
+    background: #fffaf0; border: 1px dashed #c9a963; border-radius: 10px;
+    min-height: 220px; display: flex; align-items: center; justify-content: center;
+    padding: 14px; overflow: hidden;
+  }
+  .img-slot img { max-width: 100%; max-height: 600px; border-radius: 6px; object-fit: contain; }
+  .img-slot .placeholder {
+    text-align: center; color: #a58a5b; font-style: italic; font-size: 16px;
+    font-family: "Playfair Display", Georgia, serif; padding: 18px;
+  }
+  .img-slot .placeholder small {
+    display: block; margin-top: 6px; color: #7a6f62; font-family: "Inter", sans-serif;
+    font-style: normal; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+
+  /* ── Demo gallery (2-up) ─────────────────────────────────────── */
+  .demo-gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
+  @media (max-width: 720px) { .demo-gallery { grid-template-columns: 1fr; } }
+  .demo-gallery .img-slot { min-height: 400px; }
+  .demo-gallery figcaption {
+    text-align: center; font-size: 15px; color: #6a5e52; margin-top: 8px; font-style: italic;
+  }
+
+  /* ── Architecture diagram ────────────────────────────────────── */
+  .diagram {
+    background: #fffaf0; border: 1px dashed #c9a963; border-radius: 10px;
+    padding: 18px; margin-top: 14px; overflow-x: auto;
+  }
+  .diagram svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+  .diagram-caption { text-align: center; font-size: 15px; color: #7a6f62; font-style: italic; margin-top: 8px; }
+
+  /* ── Mechanism list (one-line, numbered) ─────────────────────── */
+  .mech { list-style: none; padding: 0; margin-top: 14px; counter-reset: mechcount; }
+  .mech li {
+    padding: 12px 16px 12px 44px; position: relative; font-size: 17px; color: #2a2420;
+    background: #fffaf0; border: 1px solid #e3d9c8; border-radius: 6px; margin-bottom: 10px;
+  }
+  .mech li::before {
+    content: counter(mechcount); counter-increment: mechcount;
+    position: absolute; left: 12px; top: 12px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #a58a5b; color: #fffaf0;
+    font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Inter", sans-serif;
+  }
+  .mech b { color: #6a5232; font-weight: 600; }
+
+  /* ── Design decisions (compact dl) ───────────────────────────── */
+  .dd { display: grid; grid-template-columns: 240px 1fr; gap: 8px 16px; margin-top: 14px; font-size: 16px; }
+  @media (max-width: 720px) { .dd { grid-template-columns: 1fr; } }
+  .dd .term { font-weight: 600; color: #6a5232; padding: 6px 0 6px 10px; border-left: 2px solid #c9a963; }
+  .dd .defn { color: #3b332d; padding: 6px 0; }
+
+  /* ── Limitations (one-liners) ────────────────────────────────── */
+  .lim {
+    background: #fffaf0; border: 1px solid #e3d9c8;
+    border-radius: 6px; padding: 12px 16px; margin-bottom: 8px;
+  }
+  .lim h3 { font-size: 16px; margin-bottom: 2px; }
+  .lim p { font-size: 15px; margin: 0; color: #4a4038; }
+
+  /* ── Connect row ─────────────────────────────────────────────── */
+  .connect { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-top: 20px; }
+  @media (max-width: 720px) { .connect { grid-template-columns: 1fr; } }
+  .qr-slot {
+    background: #fffaf0; border: 1px solid #e3d9c8; border-radius: 10px;
+    padding: 18px; text-align: center;
+  }
+  .qr-slot .qr-image {
+    width: 100%; aspect-ratio: 1 / 1; max-width: 220px; margin: 0 auto 12px;
+    background: #f6f1e7; border: 1px dashed #c9a963; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    color: #a58a5b; font-size: 14px; font-style: italic;
+    overflow: hidden;
+  }
+  .qr-slot .qr-image img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
+  .qr-slot h3 { font-size: 17px; margin-bottom: 2px; }
+  .qr-slot p { font-size: 15px; color: #6a5e52; margin: 0; }
+  .qr-slot.meme .qr-image {
+    width: 100%; aspect-ratio: auto; max-width: none; height: 220px;
+    margin-bottom: 0;
+  }
+  .qr-slot.meme { padding: 18px; }
+  .qr-slot.meme .qr-image img { object-fit: cover; padding: 0; }
+
+  /* ── CTA row ─────────────────────────────────────────────────── */
+  .cta-row { display: flex; gap: 10px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+  .cta {
+    display: inline-block; padding: 12px 20px; border-radius: 6px;
+    font-weight: 500; font-size: 16px; text-decoration: none;
+    transition: transform 0.12s ease;
+  }
+  .cta-primary { background: #1c1814; color: #fffaf0; }
+  .cta-primary:hover { transform: translateY(-1px); }
+  .cta-ghost { background: transparent; color: #1c1814; border: 1px solid #1c1814; }
+
+  footer { text-align: center; padding: 40px 20px 20px; color: #7a6f62; font-size: 15px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="inner">
+    <span class="brand">Pythia</span>
+    <a href="#who">Who</a>
+    <a href="#what">What</a>
+    <a href="#why">Why</a>
+    <a href="#demo">Demo</a>
+    <a href="#arch">Architecture</a>
+    <a href="#decisions">Decisions</a>
+    <a href="#limits">Limitations</a>
+    <a href="#connect">Connect</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- ── HERO ─────────────────────────────────────────────── -->
+  <header class="hero">
+    <div class="oracle-mark" aria-hidden="true"></div>
+    <h1>Pythia</h1>
+    <div class="tag">Consult the oracle before you decide.</div>
+    <p class="lead" style="margin-top: 14px; max-width: 620px; margin-left: auto; margin-right: auto;">
+      A multi-agent simulation that shows you how stakeholders react to a decision, before you make it.
+    </p>
+  </header>
+
+  <!-- ── 1. WHO ────────────────────────────────────────── -->
+  <section id="who">
+    <span class="kicker">01 · Who</span>
+    <h2>Who am I?</h2>
+
+    <div class="who-photo">
+      <img src="assets/utkarsh.jpg" alt="Utkarsh Bajaj" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'placeholder\'>Your photo goes here<small>docs/assets/utkarsh.jpg</small></div>';" />
+    </div>
+
+    <div class="who-lines">
+      <p><strong>Utkarsh Bajaj (UB).</strong></p>
+      <p>Amazon. AI Builder.</p>
+    </div>
+  </section>
+
+  <!-- ── 2. WHAT ───────────────────────────────────────── -->
+  <section id="what">
+    <span class="kicker">02 · What</span>
+    <h2>What is Pythia?</h2>
+
+    <div class="problem-box">
+      <div class="label">The problem it solves</div>
+      <p class="statement">Decision making. Play it out before making it.</p>
+    </div>
+
+    <ul class="bullets">
+      <li><b>Solo passion project.</b> Full-stack, built for fun.</li>
+      <li><b>Plain English in.</b> Describe a decision, get a panel.</li>
+      <li><b>Agents with teeth.</b> 16 biases, influence graph, compressed memory.</li>
+      <li><b>Self-correcting.</b> Evaluator flags incoherence, Temple rewrites rules, re-run.</li>
+    </ul>
+
+    <div class="stats">
+      <div class="stat"><div class="num">16</div><div class="lbl">Biases</div></div>
+      <div class="stat"><div class="num">4</div><div class="lbl">LLM providers</div></div>
+      <div class="stat"><div class="num">100+</div><div class="lbl">Tests</div></div>
+      <div class="stat"><div class="num">5×</div><div class="lbl">Oracle loop cap</div></div>
+    </div>
+  </section>
+
+  <!-- ── 3. WHY ────────────────────────────────────────── -->
+  <section id="why">
+    <span class="kicker">03 · Why</span>
+    <h2>Why Pythia?</h2>
+    <div class="why-layout">
+      <ul class="bullets" style="margin-top: 0;">
+        <li><b>Why simulate at all.</b> Surface second-order dynamics before you pay for them.</li>
+        <li><b>Why LLMs fit.</b> They author consistent personas natively, no research team needed.</li>
+        <li><b>Why Pythia is robust.</b> Canonical biases, mechanical stance correction, coherence loop.</li>
+        <li><b>Why not just roleplay with one LLM.</b> One voice doing impressions collapses to one viewpoint.</li>
+      </ul>
+      <div class="img-slot" style="min-height: 320px;">
+        <img src="assets/why-pythia.jpg" alt="Why Pythia" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'placeholder\'>Why Pythia visual<small>docs/assets/why-pythia.jpg</small></div>';" />
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 4. DEMO ───────────────────────────────────────── -->
+  <section id="demo" style="text-align: center; background: #fffaf0; border-radius: 12px; padding: 40px 24px; margin-top: 32px; border: 1px dashed #c9a963;">
+    <span class="kicker">Intermission</span>
+    <h2>→ Live demo</h2>
+    <p style="max-width: 540px; margin: 0 auto 18px; color: #4a4038;">
+      Agents spawn, argue, shift, and settle. Oracle Loop shows self-correction.
+    </p>
+    <div class="cta-row">
+      <a class="cta cta-primary" href="http://localhost" target="_blank" rel="noopener">Open the Oracle</a>
+      <a class="cta cta-ghost" href="#arch">Continue tour ↓</a>
+    </div>
+
+    <div class="demo-gallery">
+      <figure>
+        <div class="img-slot">
+          <img src="assets/demo-verdict.png" alt="Verdict report" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'placeholder\'>Verdict report<small>docs/assets/demo-verdict.png</small></div>';" />
+        </div>
+        <figcaption>Verdict report</figcaption>
+      </figure>
+      <figure>
+        <div class="img-slot">
+          <img src="assets/demo-agent.png" alt="Agent behaviour detail" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'placeholder\'>Agent behaviour<small>docs/assets/demo-agent.png</small></div>';" />
+        </div>
+        <figcaption>Agent detail</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ── 5. ARCHITECTURE ───────────────────────────────── -->
+  <section id="arch">
+    <span class="kicker">04 · Architecture</span>
+    <h2>How it actually works</h2>
+    <p>Five layers, one LLM abstraction, everything observable.</p>
+
+    <div class="diagram">
+      <svg viewBox="0 0 820 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pythia architecture">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#6a5e52"/>
+          </marker>
+          <marker id="arrow-loop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#b85c3e"/>
+          </marker>
+        </defs>
+        <style>
+          .box { fill: #fffaf0; stroke: #2a2420; stroke-width: 1.6; }
+          .box-highlight { fill: #f0e6d5; stroke: #a58a5b; stroke-width: 1.8; }
+          .box-loop { fill: #fbeee6; stroke: #b85c3e; stroke-width: 1.8; }
+          .label { font-family: "Playfair Display", Georgia, serif; font-size: 16px; fill: #1c1814; font-weight: 600; }
+          .sublabel { font-family: "Inter", sans-serif; font-size: 12px; fill: #6a5e52; }
+          .flow { stroke: #6a5e52; stroke-width: 1.5; fill: none; }
+          .flow-loop { stroke: #b85c3e; stroke-width: 1.5; fill: none; stroke-dasharray: 4 3; }
+          .legend { font-family: "Inter", sans-serif; font-size: 12px; }
+        </style>
+
+        <rect x="40" y="40" width="160" height="70" rx="10" class="box-highlight"/>
+        <text x="120" y="70" text-anchor="middle" class="label">Prompt</text>
+        <text x="120" y="90" text-anchor="middle" class="sublabel">plain English</text>
+
+        <rect x="330" y="40" width="160" height="70" rx="10" class="box"/>
+        <text x="410" y="70" text-anchor="middle" class="label">Analyzer</text>
+        <text x="410" y="90" text-anchor="middle" class="sublabel">1 LLM call → blueprint</text>
+
+        <rect x="620" y="40" width="160" height="70" rx="10" class="box"/>
+        <text x="700" y="70" text-anchor="middle" class="label">Generator</text>
+        <text x="700" y="90" text-anchor="middle" class="sublabel">agents, bias, graph</text>
+
+        <rect x="40" y="200" width="160" height="82" rx="10" class="box"/>
+        <text x="120" y="230" text-anchor="middle" class="label">UI</text>
+        <text x="120" y="250" text-anchor="middle" class="sublabel">React + SSE</text>
+        <text x="120" y="267" text-anchor="middle" class="sublabel">live ticks</text>
+
+        <rect x="330" y="200" width="160" height="82" rx="10" class="box-highlight"/>
+        <text x="410" y="230" text-anchor="middle" class="label">Engine</text>
+        <text x="410" y="250" text-anchor="middle" class="sublabel">parallel tick × N</text>
+        <text x="410" y="267" text-anchor="middle" class="sublabel">JSON-schema enforced</text>
+
+        <rect x="620" y="200" width="160" height="82" rx="10" class="box-loop"/>
+        <text x="700" y="230" text-anchor="middle" class="label">Evaluator</text>
+        <text x="700" y="250" text-anchor="middle" class="sublabel">coherent?</text>
+        <text x="700" y="267" text-anchor="middle" class="sublabel">reason ↔ action</text>
+
+        <rect x="620" y="340" width="160" height="82" rx="10" class="box-loop"/>
+        <text x="700" y="370" text-anchor="middle" class="label">Temple</text>
+        <text x="700" y="390" text-anchor="middle" class="sublabel">add / edit rules</text>
+        <text x="700" y="407" text-anchor="middle" class="sublabel">tune bias strength</text>
+
+        <path d="M200 75 L330 75" class="flow" marker-end="url(#arrow)"/>
+        <path d="M490 75 L620 75" class="flow" marker-end="url(#arrow)"/>
+        <path d="M700 110 L700 160 L410 160 L410 200" class="flow" marker-end="url(#arrow)"/>
+        <path d="M330 240 L200 240" class="flow" marker-end="url(#arrow)"/>
+        <path d="M490 240 L620 240" class="flow" marker-end="url(#arrow)"/>
+
+        <path d="M700 282 L700 340" class="flow-loop" marker-end="url(#arrow-loop)"/>
+        <path d="M620 380 L410 380 L410 282" class="flow-loop" marker-end="url(#arrow-loop)"/>
+
+        <g transform="translate(40, 455)">
+          <line x1="0" y1="0" x2="30" y2="0" class="flow"/>
+          <text x="38" y="4" class="legend" fill="#6a5e52">data flow</text>
+          <line x1="160" y1="0" x2="190" y2="0" class="flow-loop"/>
+          <text x="198" y="4" class="legend" fill="#b85c3e">oracle self-correction loop</text>
+        </g>
+      </svg>
+      <div class="diagram-caption">Dashed red is the oracle loop. Incoherent agents cycle through Temple then Engine, up to 5 runs.</div>
+    </div>
+
+    <h3 style="margin-top: 30px; margin-bottom: 6px;">The nine mechanisms that matter</h3>
+    <ol class="mech">
+      <li><b>Structure is non-negotiable.</b> Every tick returns strict JSON, Pydantic validated, malformed replies fall back to a neutral tick.</li>
+      <li><b>Emotion is feedback.</b> Whatever an agent feels this tick gets stamped into memory and replayed next tick.</li>
+      <li><b>Bias in two layers.</b> Prompt cues shape reasoning, a mechanical nudge shapes the trajectory.</li>
+      <li><b>Guardrails keep runs stable.</b> Stance clamped 0.0 to 1.0, per-tick nudge capped, memory compressed, rules capped at 8, fuzzy targets fall back to null.</li>
+      <li><b>Parallel ticks, not turn-taking.</b> All agents reason simultaneously against last tick's world, killing turn-order bias.</li>
+      <li><b>Coherence is the honest metric.</b> We score whether reasoning explained the action, not whether the action was right.</li>
+      <li><b>Temple rewrites failures.</b> Incoherent agents get new rules or edited rules and a nudged bias strength before the next run.</li>
+      <li><b>Ensemble quantifies uncertainty.</b> Three runs agreeing is signal, three disagreeing is reported as low confidence.</li>
+      <li><b>Backtest is the accuracy check.</b> Against a known outcome we score direction, aggregate error, and confidence match.</li>
+    </ol>
+  </section>
+
+  <!-- ── 6. DESIGN DECISIONS ───────────────────────────── -->
+  <section id="decisions">
+    <span class="kicker">05 · Design decisions</span>
+    <h2>Why it is built this way</h2>
+    <div class="dd">
+      <div class="term">Coherence over accuracy</div>
+      <div class="defn">No ground truth for opinion; coherence is the strongest honest signal. Backtest adds accuracy when history exists.</div>
+
+      <div class="term">Parallel per-tick LLM calls</div>
+      <div class="defn">Agents see last tick's world, eliminating turn-order bias and cutting latency by N times.</div>
+
+      <div class="term">Two-layer bias</div>
+      <div class="defn">Text cues shape reasoning, mechanical functions shape trajectory.</div>
+
+      <div class="term">Additive rule amendment</div>
+      <div class="defn">Appending keeps nuance; at the 8-rule cap, Temple edits instead of inflating.</div>
+
+      <div class="term">Ensemble for variability</div>
+      <div class="defn">Same agents, fresh tick loops; surfaces where the system is stable vs fragile.</div>
+
+      <div class="term">Backtest for calibration</div>
+      <div class="defn">Direction (±0.1 neutral band), aggregate error, confidence match.</div>
+
+      <div class="term">Hand-authored bias catalog</div>
+      <div class="defn">16 canonical biases with citations; no freeform LLM bias names that drift.</div>
+
+      <div class="term"><code>LLMClient</code> Protocol</div>
+      <div class="defn">Structural typing, per-provider token-bucket rate limiter.</div>
+
+      <div class="term">SSE end-to-end</div>
+      <div class="defn">UI renders ticks as they stream, no one-shot blocking calls.</div>
+    </div>
+  </section>
+
+  <!-- ── 7. LIMITATIONS ────────────────────────────────── -->
+  <section id="limits">
+    <span class="kicker">06 · Limitations &amp; future scope</span>
+    <h2>What it can't do yet</h2>
+
+    <div class="lim"><h3>Rate limits throttle demos.</h3><p>Free-tier providers 429 under parallel ticks.</p></div>
+    <div class="lim"><h3>Coherence is not correctness.</h3><p>Internally consistent can still be wrong.</p></div>
+    <div class="lim"><h3>Small-N panel.</h3><p>Boardroom-scale works; market-scale blows up prompt size.</p></div>
+    <div class="lim"><h3>Memory is still a string.</h3><p>Compressed today; longer horizons need graph or vector recall.</p></div>
+    <div class="lim"><h3>Small LLMs drift.</h3><p>8B-class models sometimes return malformed JSON or repeat prior reasoning.</p></div>
+    <div class="lim"><h3>Static influence graph.</h3><p>Relationships set at generation; real networks rewire under stress.</p></div>
+  </section>
+
+  <!-- ── 8. CONNECT ────────────────────────────────────── -->
+  <section id="connect">
+    <span class="kicker">07 · Connect</span>
+    <h2>Before you go</h2>
+
+    <div class="connect">
+      <div class="qr-slot meme">
+        <div class="qr-image">
+          <img src="assets/meme.jpg" alt="Meme" onerror="this.style.display='none'; this.parentElement.innerHTML='Meme goes here<br><small>docs/assets/meme.jpg</small>';" />
+        </div>
+      </div>
+
+      <div class="qr-slot">
+        <div class="qr-image">
+          <img src="assets/qr-linkedin.png" alt="LinkedIn QR" onerror="this.style.display='none'; this.parentElement.innerHTML='LinkedIn QR<br><small>docs/assets/qr-linkedin.png</small>';" />
+        </div>
+        <h3>Let's connect</h3>
+        <p>LinkedIn → Utkarsh Bajaj</p>
+      </div>
+
+      <div class="qr-slot">
+        <div class="qr-image">
+          <img src="assets/qr-github.png" alt="GitHub QR" onerror="this.style.display='none'; this.parentElement.innerHTML='GitHub QR<br><small>docs/assets/qr-github.png</small>';" />
+        </div>
+        <h3>See the code</h3>
+        <p>github.com/Ubajaj1/Pythia</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Named after the Oracle of Delphi, the most consulted seer in the ancient world.
+  </footer>
+
+</div>
+
+</body>
+</html>

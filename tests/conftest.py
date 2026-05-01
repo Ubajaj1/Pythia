@@ -11,8 +11,8 @@ class FakeLLMClient(LLMClient):
         self.responses = list(responses) if responses else []
         self.calls: list[dict] = []
 
-    async def generate(self, prompt: str, system: str | None = None) -> dict:
-        self.calls.append({"prompt": prompt, "system": system})
+    async def generate(self, prompt: str, system: str | None = None, seed: int | None = None) -> dict:
+        self.calls.append({"prompt": prompt, "system": system, "seed": seed})
         if self.responses:
             return self.responses.pop(0)
         return {}

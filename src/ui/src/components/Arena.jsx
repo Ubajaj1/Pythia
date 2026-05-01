@@ -1,8 +1,9 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 
 const C_REST   = [58,  58,  56]
 const C_ACTIVE = [200, 194, 185]
 const C_PANIC  = [160, 72,  60]
+const C_BULLISH = [106, 155, 106]
 
 function lerpRGB(a, b, t) {
   return a.map((v, i) => Math.round(v + (b[i] - v) * t))
@@ -30,14 +31,21 @@ function initParticles(W, H, count = 290) {
   }))
 }
 
-export default function Arena({ crowdStateIndex, crowdStateName }) {
+export default function Arena({ crowdStateIndex, crowdStateName, aggregateStance }) {
   const canvasRef  = useRef(null)
-  const stateRef   = useRef({ particles: [], crowdStateIndex: 0 })
+  const stateRef   = useRef({ particles: [], crowdStateIndex: 0, aggregateStance: 0.5 })
   const rafRef     = useRef(null)
+  const [showLegend, setShowLegend] = useState(false)
 
   useEffect(() => {
     stateRef.current.crowdStateIndex = crowdStateIndex
   }, [crowdStateIndex])
+
+  useEffect(() => {
+    if (aggregateStance != null) {
+      stateRef.current.aggregateStance = aggregateStance
+    }
+  }, [aggregateStance])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -80,10 +88,20 @@ export default function Arena({ crowdStateIndex, crowdStateName }) {
         if (p.y < 0) p.y = H; if (p.y > H) p.y = 0
         p.ct += (cfg.ct - p.ct) * 0.018
 
+        // Use aggregate stance to modulate color intensity
+        // Extreme stances (near 0 or 1) = more active colors
+        const agg = stateRef.current.aggregateStance
+        const extremity = Math.abs(agg - 0.5) * 2  // 0 at center, 1 at extremes
+        const colorBlend = Math.max(p.ct, extremity * 0.6)
+
         const rgb = cfg.panic
-          ? lerpRGB(C_REST, C_PANIC, p.ct)
-          : lerpRGB(C_REST, C_ACTIVE, p.ct)
-        const alpha = 0.38 + p.ct * 0.48
+          ? lerpRGB(C_REST, C_PANIC, colorBlend)
+          : agg < 0.35
+            ? lerpRGB(C_REST, C_PANIC, colorBlend * 0.6)
+            : agg > 0.65
+              ? lerpRGB(C_REST, C_BULLISH, colorBlend * 0.6)
+              : lerpRGB(C_REST, C_ACTIVE, colorBlend)
+        const alpha = 0.38 + colorBlend * 0.48
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.sz, 0, Math.PI * 2)
         ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`
@@ -113,12 +131,115 @@ export default function Arena({ crowdStateIndex, crowdStateName }) {
         left: 0, right: 0,
         textAlign: 'center',
         fontFamily: 'var(--font-mono)',
-        fontSize: 8.5,
+        fontSize: 11,
         letterSpacing: '0.16em',
         textTransform: 'uppercase',
-        color: 'var(--text-ui)',
+        color: '#FFFFFF',
         pointerEvents: 'none',
-      }}>{crowdStateName}</div>
+        lineHeight: 1.5,
+        textShadow: '0 1px 4px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.85)',
+      }}>
+        <span style={{ color: '#FFFFFF' }}>Crowd:</span> {crowdStateName}
+        {aggregateStance != null && (
+          <span style={{ marginLeft: 14 }}>
+            <span style={{ color: '#FFFFFF' }}>Stance:</span>{' '}
+            <span style={{ color: 'var(--gold)' }}>
+              {aggregateStance.toFixed(2)}
+            </span>
+          </span>
+        )}
+      </div>
+
+      {/* Info button */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 10,
+          right: 10,
+          cursor: 'pointer',
+          zIndex: 5,
+          padding: '4px 8px',
+        }}
+        onClick={() => setShowLegend(s => !s)}
+      >
+        <span style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 13,
+          color: 'var(--gold)',
+          opacity: 1,
+        }}>ⓘ</span>
+      </div>
+
+      {/* Legend overlay */}
+      {showLegend && (
+        <div style={{
+          position: 'absolute',
+          top: 32,
+          right: 10,
+          width: 230,
+          background: 'rgba(13,13,11,0.97)',
+          border: '1px solid #6a6a60',
+          borderRadius: 4,
+          padding: '11px 13px',
+          zIndex: 10,
+          pointerEvents: 'auto',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
+        }}>
+          <div style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 10,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: 'var(--gold)',
+            marginBottom: 7,
+            lineHeight: 1.5,
+          }}>Crowd Dynamics</div>
+          <div style={{
+            fontFamily: 'var(--font-ui)',
+            fontSize: 11,
+            color: '#FFFFFF',
+            lineHeight: 1.55,
+          }}>
+            Each particle = a segment of the population this decision affects.
+          </div>
+          <div style={{ marginTop: 9, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 9, height: 9, borderRadius: '50%', background: 'rgb(160,72,60)', flexShrink: 0 }} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#FFFFFF', lineHeight: 1.5 }}>
+                Red — leans against
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 9, height: 9, borderRadius: '50%', background: 'rgb(200,194,185)', flexShrink: 0 }} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#FFFFFF', lineHeight: 1.5 }}>
+                Neutral — undecided
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 9, height: 9, borderRadius: '50%', background: 'rgb(106,155,106)', flexShrink: 0 }} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#FFFFFF', lineHeight: 1.5 }}>
+                Green — leans for
+              </span>
+            </div>
+          </div>
+          <div style={{
+            marginTop: 10,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 9,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            color: 'var(--gold)',
+            marginBottom: 4,
+          }}>States (from live data)</div>
+          <div style={{ fontFamily: 'var(--font-ui)', fontSize: 10, color: '#FFFFFF', lineHeight: 1.6 }}>
+            <strong>Scattered</strong> — wide spread, no lean.<br />
+            <strong>Drifting</strong> — aggregate moving this tick.<br />
+            <strong>Converging</strong> — narrowing + active herding.<br />
+            <strong>Locked</strong> — tight consensus, little movement.<br />
+            <strong>Polarized</strong> — two camps, wide gap.
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,10 +1,8 @@
-export const CROWD_STATES = [
-  'Herd Neutrality',
-  'Social Contagion',
-  'Bandwagon Effect',
-  'Groupthink Lock',
-  'Deindividuation',
-]
+// CROWD_STATES has moved to ./crowdState where the live classifier owns it.
+// Re-exported here so imports across the codebase keep resolving.
+export { CROWD_STATES } from './crowdState'
+
+import { formatBias } from '../format'
 
 export const SCENARIOS = {
   'market-sentiment': {
@@ -83,14 +81,14 @@ export function scenarioFromRunResult(result) {
   const protagonists = result.agents.map((agent, i) => ({
     id: agent.id,
     name: agent.name,
-    trait: agent.bias,
+    trait: formatBias(agent.bias),
     color: AGENT_COLORS[i % AGENT_COLORS.length].color,
     glow: AGENT_COLORS[i % AGENT_COLORS.length].glow,
   }))
 
   const amendments = result.agents.map(agent => [
     'Recalibrating',
-    `${agent.bias} parameters...`,
+    `${formatBias(agent.bias)} parameters...`,
   ])
 
   return {
@@ -99,6 +97,9 @@ export function scenarioFromRunResult(result) {
     amendments,
     ticks: result.ticks,
     agents: result.agents,
+    influenceEdges: result.influence_graph?.edges || [],
+    stanceSpectrum: result.scenario?.stance_spectrum || [],
+    tickCount: result.ticks?.length || 20,
   }
 }
 
@@ -106,11 +107,11 @@ export function scenarioFromStreamScenario(data) {
   const protagonists = data.agents.map((agent, i) => ({
     id: agent.id,
     name: agent.name,
-    trait: agent.bias,
+    trait: formatBias(agent.bias),
     color: AGENT_COLORS[i % AGENT_COLORS.length].color,
     glow: AGENT_COLORS[i % AGENT_COLORS.length].glow,
   }))
-  const amendments = data.agents.map(agent => ['Recalibrating', `${agent.bias} parameters...`])
+  const amendments = data.agents.map(agent => ['Recalibrating', `${formatBias(agent.bias)} parameters...`])
   return {
     name: data.title,
     protagonists,
@@ -118,6 +119,7 @@ export function scenarioFromStreamScenario(data) {
     agents: data.agents,
     ticks: [],
     tickCount: data.tick_count,
+    stanceSpectrum: data.stance_spectrum || [],
   }
 }
 
@@ -131,7 +133,7 @@ export function scenarioFromOracleResult(oracleResult) {
   const protagonists = firstRun.result.agents.map((agent, i) => ({
     id: agent.id,
     name: agent.name,
-    trait: agent.bias,
+    trait: formatBias(agent.bias),
     color: AGENT_COLORS[i % AGENT_COLORS.length].color,
     glow: AGENT_COLORS[i % AGENT_COLORS.length].glow,
     amended: amendedIds.has(agent.id),
@@ -139,7 +141,7 @@ export function scenarioFromOracleResult(oracleResult) {
 
   const amendments = firstRun.result.agents.map(agent => [
     amendedIds.has(agent.id) ? 'Amending' : 'Recalibrating',
-    `${agent.bias} rules...`,
+    `${formatBias(agent.bias)} rules...`,
   ])
 
   return {
@@ -148,6 +150,41 @@ export function scenarioFromOracleResult(oracleResult) {
     amendments,
     ticks: firstRun.result.ticks,
     agents: firstRun.result.agents,
+    influenceEdges: oracleResult.influence_graph?.edges || firstRun.result.influence_graph?.edges || [],
     coherenceHistory: oracleResult.coherence_history.map(s => Math.round(s * 100)),
+    stanceSpectrum: firstRun.result.scenario?.stance_spectrum || [],
+    tickCount: firstRun.result.ticks?.length || 20,
+  }
+}
+
+export function scenarioFromEnsembleResult(ensembleResult) {
+  // Use the primary run for animation — the first run
+  const primaryRun = ensembleResult.primary_run || ensembleResult.runs?.[0]
+  if (!primaryRun) {
+    throw new Error('Ensemble result contains no runs')
+  }
+
+  const protagonists = primaryRun.agents.map((agent, i) => ({
+    id: agent.id,
+    name: agent.name,
+    trait: formatBias(agent.bias),
+    color: AGENT_COLORS[i % AGENT_COLORS.length].color,
+    glow: AGENT_COLORS[i % AGENT_COLORS.length].glow,
+  }))
+
+  const amendments = primaryRun.agents.map(agent => [
+    'Recalibrating',
+    `${formatBias(agent.bias)} parameters...`,
+  ])
+
+  return {
+    name: primaryRun.scenario.title,
+    protagonists,
+    amendments,
+    ticks: primaryRun.ticks,
+    agents: primaryRun.agents,
+    influenceEdges: primaryRun.influence_graph?.edges || [],
+    stanceSpectrum: primaryRun.scenario?.stance_spectrum || [],
+    tickCount: primaryRun.ticks?.length || 20,
   }
 }

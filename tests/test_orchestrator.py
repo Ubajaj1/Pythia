@@ -5,7 +5,7 @@ import os
 import pytest
 from tests.conftest import FakeLLMClient
 from pythia.orchestrator import run_simulation
-from pythia.models import RunResult
+from pythia.models import RunResult, RunResultWithInsights
 
 
 # Canned LLM responses: 1 analyzer + 2 generator pass1 + 1 generator pass2 + (3 ticks × 2 agents)
@@ -76,7 +76,7 @@ class TestRunSimulation:
             llm=llm,
             runs_dir=str(tmp_path),
         )
-        assert isinstance(result, RunResult)
+        assert isinstance(result, RunResultWithInsights)
         assert result.scenario.title == "Test Event"
         assert len(result.agents) == 2
         assert len(result.ticks) == 3
