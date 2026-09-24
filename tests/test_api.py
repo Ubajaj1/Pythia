@@ -182,6 +182,9 @@ class TestFastLLMProvisioning:
         monkeypatch.setattr("pythia.config.GROQ_API_KEY", "groq-key")       # both keys set
         monkeypatch.setattr("pythia.config.ANTHROPIC_API_KEY", "anth-key")  # both keys set
 
+        monkeypatch.setattr("pythia.config.ANTHROPIC_MODEL", "claude-sonnet-5")
+        monkeypatch.setattr("pythia.config.ANTHROPIC_TICK_MODEL", "claude-haiku-4-5")
+
         api_module.create_app()  # provider=None — auto-detect
 
         assert len(calls) == 2

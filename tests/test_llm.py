@@ -139,13 +139,26 @@ def test_role_env_specs_win(monkeypatch):
     assert tick == ("groq", "openai/gpt-oss-20b")
 
 
-def test_anthropic_default_gets_haiku_tick(monkeypatch):
+def test_anthropic_default_uses_one_haiku_client(monkeypatch):
     monkeypatch.delenv("PYTHIA_MAIN_MODEL", raising=False)
     monkeypatch.delenv("PYTHIA_TICK_MODEL", raising=False)
     monkeypatch.setattr("pythia.config.ANTHROPIC_API_KEY", "k")
+    monkeypatch.setattr("pythia.config.ANTHROPIC_MODEL", "claude-haiku-4-5")
+    monkeypatch.setattr("pythia.config.ANTHROPIC_TICK_MODEL", "claude-haiku-4-5")
     monkeypatch.setattr(llm_mod, "build_llm_client", lambda provider=None, ollama_url=None, model=None: (provider, model))
     main, tick = llm_mod.build_role_clients()
     assert main == (None, None)
+    assert tick is None
+
+
+def test_anthropic_separate_tick_model(monkeypatch):
+    monkeypatch.delenv("PYTHIA_MAIN_MODEL", raising=False)
+    monkeypatch.delenv("PYTHIA_TICK_MODEL", raising=False)
+    monkeypatch.setattr("pythia.config.ANTHROPIC_API_KEY", "k")
+    monkeypatch.setattr("pythia.config.ANTHROPIC_MODEL", "claude-sonnet-5")
+    monkeypatch.setattr("pythia.config.ANTHROPIC_TICK_MODEL", "claude-haiku-4-5")
+    monkeypatch.setattr(llm_mod, "build_llm_client", lambda provider=None, ollama_url=None, model=None: (provider, model))
+    _, tick = llm_mod.build_role_clients()
     assert tick == ("anthropic", "claude-haiku-4-5")
 
 

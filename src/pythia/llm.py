@@ -249,6 +249,9 @@ def build_role_clients(
         "ollama"
     )
     if effective == "anthropic":
+        # Same model for both roles: one client, so both share one rate limiter.
+        if config.ANTHROPIC_TICK_MODEL == (model or config.ANTHROPIC_MODEL):
+            return main, None
         return main, build_llm_client(provider="anthropic", ollama_url=ollama_url, model=config.ANTHROPIC_TICK_MODEL)
     if effective == "groq":
         return main, build_llm_client(provider="groq", ollama_url=ollama_url, model=config.GROQ_FAST_MODEL)

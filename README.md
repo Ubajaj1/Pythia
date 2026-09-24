@@ -45,7 +45,7 @@ Pythia uses two model roles: **main** (scenario analysis, agent generation, the 
 
 | Provider | Main | Tick |
 |---|---|---|
-| Anthropic | `claude-opus-5` (`ANTHROPIC_MODEL`) | `claude-haiku-4-5` (`ANTHROPIC_TICK_MODEL`) |
+| Anthropic | `claude-haiku-4-5` (`ANTHROPIC_MODEL`; `claude-opus-5` for sharper analysis at ~5× the cost) | `claude-haiku-4-5` (`ANTHROPIC_TICK_MODEL`) |
 | Groq | `openai/gpt-oss-120b` (`GROQ_MODEL`) | `openai/gpt-oss-20b` (`GROQ_FAST_MODEL`) |
 | OpenAI / Ollama | `OPENAI_MODEL` / `llama3.1:8b` | same as main |
 
