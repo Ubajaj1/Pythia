@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 
 _OPENAI_URL = "https://api.openai.com/v1/chat/completions"
 _MAX_RETRIES = 10
+# Transient server-side failures worth retrying with backoff (429 is handled separately).
+_RETRYABLE_SERVER_STATUSES = {500, 502, 503, 504}
 
 
 class OpenAICompatClient:
@@ -83,6 +85,23 @@ class OpenAICompatClient:
                 raise ConnectionError(
                     f"Cannot connect to {self.provider_name} at {self.base_url}"
                 ) from None
+            except (httpx.ReadTimeout, httpx.WriteTimeout, httpx.PoolTimeout) as exc:
+                wait = min(2 ** attempt, 60)
+                logger.warning(
+                    "%s request timed out (%s) — waiting %.1fs (attempt %d/%d)",
+                    self.provider_name, type(exc).__name__, wait, attempt + 1, _MAX_RETRIES,
+                )
+                await asyncio.sleep(wait)
+                continue
+
+            if response.status_code in _RETRYABLE_SERVER_STATUSES:
+                wait = min(2 ** attempt, 60)
+                logger.warning(
+                    "%s transient error %d — waiting %.1fs (attempt %d/%d)",
+                    self.provider_name, response.status_code, wait, attempt + 1, _MAX_RETRIES,
+                )
+                await asyncio.sleep(wait)
+                continue
 
             if response.status_code == 429:
                 # Safety net — rate limiter should prevent this, but APIs can be unpredictable
@@ -113,8 +132,8 @@ class OpenAICompatClient:
             return json.loads(raw)
 
         raise RuntimeError(
-            f"Exceeded {_MAX_RETRIES} retries due to rate limiting on {self.provider_name} "
-            f"(model={self.model}). Consider using a model with higher RPM limits."
+            f"Exceeded {_MAX_RETRIES} retries on {self.provider_name} (model={self.model}): "
+            "rate-limited, overloaded, or timing out. Consider a model with higher limits or try again later."
         )
 
     async def close(self) -> None:
