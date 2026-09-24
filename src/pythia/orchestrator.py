@@ -20,6 +20,7 @@ from pythia.models import (
     ScenarioInfo,
 )
 from pythia.summary import agent_infos, build_methodology, build_run_result, generate_run_id
+from pythia.jev.core import start_shadow, stop_shadow
 from pythia.usage import start_usage, stop_usage
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,7 @@ async def stream_simulation(
     Flow: thinking → grounding? → blueprint → scenario → tick×N → decision → done.
     """
     usage, usage_token = start_usage()
+    shadow, shadow_token = start_shadow()
     try:
         final_agents, final_ticks = _resolve_counts(preset, agent_count, tick_count)
 
@@ -156,6 +158,7 @@ async def stream_simulation(
                 parse_failures=engine.parse_failures,
                 usage=usage.to_dict(),
             ),
+            jev_shadow=shadow,
         )
 
         runs_path = Path(runs_dir)
@@ -166,6 +169,7 @@ async def stream_simulation(
 
         yield {"type": "done", "data": enriched.model_dump(mode="json")}
     finally:
+        stop_shadow(shadow_token)
         stop_usage(usage_token)
 
 
@@ -183,6 +187,7 @@ async def run_simulation(
 ) -> RunResultWithInsights:
     """Run the full simulation pipeline and return enriched results."""
     usage, usage_token = start_usage()
+    shadow, shadow_token = start_shadow()
     try:
         final_agents, final_ticks = _resolve_counts(preset, agent_count, tick_count)
 
@@ -237,6 +242,7 @@ async def run_simulation(
                 parse_failures=engine.parse_failures,
                 usage=usage.to_dict(),
             ),
+            jev_shadow=shadow,
         )
 
         # 7. Save to disk
@@ -247,4 +253,5 @@ async def run_simulation(
 
         return enriched
     finally:
+        stop_shadow(shadow_token)
         stop_usage(usage_token)

@@ -152,3 +152,9 @@ async def test_stream_emits_camps_influence_and_quality(tmp_path):
 async def test_run_simulation_reports_quality(tmp_path):
     result = await run_simulation("q", llm=FakeLLMClient(responses=make_all_responses()), runs_dir=str(tmp_path))
     assert result.quality is not None and result.quality.parse_failures == 0
+
+
+async def test_done_payload_carries_jev_shadow(tmp_path):
+    llm = FakeLLMClient(responses=make_all_responses())
+    events = [e async for e in stream_simulation("q", llm=llm, runs_dir=str(tmp_path))]
+    assert events[-1]["data"]["jev_shadow"] == []

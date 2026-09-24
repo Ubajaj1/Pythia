@@ -19,6 +19,7 @@ from pythia.models import (
     OracleLoopResult,
     OracleRunRecord,
 )
+from pythia.jev.core import start_shadow, stop_shadow
 from pythia.summary import agent_infos as build_agent_infos, build_run_result, generate_run_id
 from pythia.temple import amend_agent
 
@@ -43,117 +44,122 @@ async def run_oracle_loop(
     Re-uses blueprint and (amended) agents across runs — no re-analysis.
     Optionally grounds the simulation with document data.
     """
-    logger.info(
-        "Oracle Loop started prompt=%r max_runs=%d",
-        prompt[:60] + ("..." if len(prompt) > 60 else ""), max_runs,
-    )
-
-    # Resolve preset + explicit overrides
-    preset_vals = resolve_preset(preset)
-    final_agents = agent_count or preset_vals.get("agent_count")
-    final_ticks = tick_count or preset_vals.get("tick_count")
-
-    # Optional document grounding
-    grounding_text = ""
-    if document_text:
-        grounding = await extract_grounding(
-            document_text=document_text, prompt=prompt, llm=llm,
-            source_name=document_name or "uploaded document",
-        )
-        grounding_text = format_grounding_for_prompt(grounding)
-
-    enriched_context = context or ""
-    if grounding_text:
-        enriched_context = (enriched_context + "\n" + grounding_text).strip()
-
-    blueprint = await analyze_scenario(
-        prompt, llm=llm, context=enriched_context or None,
-        agent_count=final_agents, tick_count=final_ticks,
-    )
-    agents = await generate_agents(blueprint, llm=llm)
-
-    run_records: list[OracleRunRecord] = []
-    last_influence_graph: InfluenceGraph | None = None
-
-    for run_num in range(1, max_runs + 1):
-        logger.info("Oracle run %d/%d started agents=%d", run_num, max_runs, len(agents))
-
-        engine = SimulationEngine(
-            blueprint=blueprint, agents=agents, llm=llm,
-            grounding_context=grounding_text,
-        )
-        ticks = await engine.run()
-        last_influence_graph = engine.influence_graph
-
-        # Build result using shared logic (same summary computation as orchestrator)
-        run_id = generate_run_id(prefix="oracle")
-        run_result = build_run_result(prompt, blueprint, agents, ticks, run_id=run_id)
-
-        # Save to disk
-        runs_path = Path(runs_dir)
-        runs_path.mkdir(parents=True, exist_ok=True)
-        (runs_path / f"{run_id}.json").write_text(
-            run_result.model_dump_json(indent=2, by_alias=True)
-        )
-
-        evaluations = await evaluate_run(run_result, agents, llm)
-        coherence_score = sum(1 for e in evaluations if e.is_coherent) / len(evaluations)
-        failing = [e for e in evaluations if not e.is_coherent]
-
+    shadow, shadow_token = start_shadow()
+    try:
         logger.info(
-            "Oracle run %d/%d complete coherence=%.1f%% (%d/%d coherent) failing=%s",
-            run_num, max_runs, coherence_score * 100,
-            len(evaluations) - len(failing), len(evaluations),
-            [e.agent_id for e in failing] or "none",
+            "Oracle Loop started prompt=%r max_runs=%d",
+            prompt[:60] + ("..." if len(prompt) > 60 else ""), max_runs,
         )
 
-        run_records.append(OracleRunRecord(
-            run_number=run_num,
-            result=run_result,
-            evaluations=evaluations,
-            coherence_score=round(coherence_score, 4),
-            amended_agent_ids=[e.agent_id for e in failing],
-        ))
+        # Resolve preset + explicit overrides
+        preset_vals = resolve_preset(preset)
+        final_agents = agent_count or preset_vals.get("agent_count")
+        final_ticks = tick_count or preset_vals.get("tick_count")
 
-        if not failing:
-            logger.info("All agents coherent — stopping early after %d run(s)", run_num)
-            break
+        # Optional document grounding
+        grounding_text = ""
+        if document_text:
+            grounding = await extract_grounding(
+                document_text=document_text, prompt=prompt, llm=llm,
+                source_name=document_name or "uploaded document",
+            )
+            grounding_text = format_grounding_for_prompt(grounding)
 
-        if run_num < max_runs:
-            logger.info("Amending %d failing agent(s) before run %d", len(failing), run_num + 1)
-            amended_agents = []
-            for agent in agents:
-                failing_eval = next((e for e in failing if e.agent_id == agent.id), None)
-                if failing_eval:
-                    tick_pairs = extract_agent_tick_pairs(run_result, agent.id)
-                    amended = await amend_agent(agent, failing_eval, tick_pairs, llm)
-                    amended_agents.append(amended)
-                else:
-                    amended_agents.append(agent)
-            agents = amended_agents
+        enriched_context = context or ""
+        if grounding_text:
+            enriched_context = (enriched_context + "\n" + grounding_text).strip()
 
-    # Generate decision summary from the final run's data and influence graph
-    decision_summary = None
-    if run_records and last_influence_graph:
-        final_result = run_records[-1].result
-        decision_summary = await generate_decision_summary(
-            final_result, last_influence_graph, llm,
-            has_grounding=bool(document_text),
+        blueprint = await analyze_scenario(
+            prompt, llm=llm, context=enriched_context or None,
+            agent_count=final_agents, tick_count=final_ticks,
+        )
+        agents = await generate_agents(blueprint, llm=llm)
+
+        run_records: list[OracleRunRecord] = []
+        last_influence_graph: InfluenceGraph | None = None
+
+        for run_num in range(1, max_runs + 1):
+            logger.info("Oracle run %d/%d started agents=%d", run_num, max_runs, len(agents))
+
+            engine = SimulationEngine(
+                blueprint=blueprint, agents=agents, llm=llm,
+                grounding_context=grounding_text,
+            )
+            ticks = await engine.run()
+            last_influence_graph = engine.influence_graph
+
+            # Build result using shared logic (same summary computation as orchestrator)
+            run_id = generate_run_id(prefix="oracle")
+            run_result = build_run_result(prompt, blueprint, agents, ticks, run_id=run_id)
+
+            # Save to disk
+            runs_path = Path(runs_dir)
+            runs_path.mkdir(parents=True, exist_ok=True)
+            (runs_path / f"{run_id}.json").write_text(
+                run_result.model_dump_json(indent=2, by_alias=True)
+            )
+
+            evaluations = await evaluate_run(run_result, agents, llm)
+            coherence_score = sum(1 for e in evaluations if e.is_coherent) / len(evaluations)
+            failing = [e for e in evaluations if not e.is_coherent]
+
+            logger.info(
+                "Oracle run %d/%d complete coherence=%.1f%% (%d/%d coherent) failing=%s",
+                run_num, max_runs, coherence_score * 100,
+                len(evaluations) - len(failing), len(evaluations),
+                [e.agent_id for e in failing] or "none",
+            )
+
+            run_records.append(OracleRunRecord(
+                run_number=run_num,
+                result=run_result,
+                evaluations=evaluations,
+                coherence_score=round(coherence_score, 4),
+                amended_agent_ids=[e.agent_id for e in failing],
+            ))
+
+            if not failing:
+                logger.info("All agents coherent — stopping early after %d run(s)", run_num)
+                break
+
+            if run_num < max_runs:
+                logger.info("Amending %d failing agent(s) before run %d", len(failing), run_num + 1)
+                amended_agents = []
+                for agent in agents:
+                    failing_eval = next((e for e in failing if e.agent_id == agent.id), None)
+                    if failing_eval:
+                        tick_pairs = extract_agent_tick_pairs(run_result, agent.id)
+                        amended = await amend_agent(agent, failing_eval, tick_pairs, llm)
+                        amended_agents.append(amended)
+                    else:
+                        amended_agents.append(agent)
+                agents = amended_agents
+
+        # Generate decision summary from the final run's data and influence graph
+        decision_summary = None
+        if run_records and last_influence_graph:
+            final_result = run_records[-1].result
+            decision_summary = await generate_decision_summary(
+                final_result, last_influence_graph, llm,
+                has_grounding=bool(document_text),
+            )
+
+        final_coherence = run_records[-1].coherence_score if run_records else 0.0
+        logger.info(
+            "Oracle Loop complete runs=%d final_coherence=%.1f%%",
+            len(run_records), final_coherence * 100,
         )
 
-    final_coherence = run_records[-1].coherence_score if run_records else 0.0
-    logger.info(
-        "Oracle Loop complete runs=%d final_coherence=%.1f%%",
-        len(run_records), final_coherence * 100,
-    )
-
-    return OracleLoopResult(
-        prompt=prompt,
-        runs=run_records,
-        coherence_history=[r.coherence_score for r in run_records],
-        decision_summary=decision_summary,
-        influence_graph=last_influence_graph,
-    )
+        return OracleLoopResult(
+            prompt=prompt,
+            runs=run_records,
+            coherence_history=[r.coherence_score for r in run_records],
+            decision_summary=decision_summary,
+            influence_graph=last_influence_graph,
+            jev_shadow=shadow,
+        )
+    finally:
+        stop_shadow(shadow_token)
 
 
 async def stream_oracle_loop(
@@ -186,183 +192,188 @@ async def stream_oracle_loop(
       - run_complete (per iteration, carries coherence_score + failing agents)
       - done (final OracleLoopResult)
     """
-    logger.info(
-        "Oracle stream started prompt=%r max_runs=%d",
-        prompt[:60] + ("..." if len(prompt) > 60 else ""), max_runs,
-    )
-
-    # Resolve preset + explicit overrides
-    preset_vals = resolve_preset(preset)
-    final_agents = agent_count or preset_vals.get("agent_count")
-    final_ticks = tick_count or preset_vals.get("tick_count")
-
-    yield {"type": "thinking"}
-
-    # Optional document grounding (once, shared across runs)
-    grounding = None
-    grounding_text = ""
-    if document_text:
-        grounding = await extract_grounding(
-            document_text=document_text, prompt=prompt, llm=llm,
-            source_name=document_name or "uploaded document",
+    shadow, shadow_token = start_shadow()
+    try:
+        logger.info(
+            "Oracle stream started prompt=%r max_runs=%d",
+            prompt[:60] + ("..." if len(prompt) > 60 else ""), max_runs,
         )
-        grounding_text = format_grounding_for_prompt(grounding)
-        yield {"type": "grounding", "data": grounding.model_dump(mode="json")}
 
-    enriched_context = context or ""
-    if grounding_text:
-        enriched_context = (enriched_context + "\n" + grounding_text).strip()
+        # Resolve preset + explicit overrides
+        preset_vals = resolve_preset(preset)
+        final_agents = agent_count or preset_vals.get("agent_count")
+        final_ticks = tick_count or preset_vals.get("tick_count")
 
-    blueprint = await analyze_scenario(
-        prompt, llm=llm, context=enriched_context or None,
-        agent_count=final_agents, tick_count=final_ticks,
-    )
-    yield {
-        "type": "blueprint",
-        "data": {
-            "title": blueprint.title,
-            "tick_count": blueprint.tick_count,
-            "stance_spectrum": blueprint.stance_spectrum,
-            "max_runs": max_runs,
-        },
-    }
+        yield {"type": "thinking"}
 
-    agents = await generate_agents(blueprint, llm=llm)
+        # Optional document grounding (once, shared across runs)
+        grounding = None
+        grounding_text = ""
+        if document_text:
+            grounding = await extract_grounding(
+                document_text=document_text, prompt=prompt, llm=llm,
+                source_name=document_name or "uploaded document",
+            )
+            grounding_text = format_grounding_for_prompt(grounding)
+            yield {"type": "grounding", "data": grounding.model_dump(mode="json")}
 
-    # Emit the scenario once — the cast is stable across iterations, even
-    # though individual agents may get amended (rules/bias_strength) between
-    # runs. Those amendments don't change agent id/name/initial_stance so the
-    # UI's Stage/protagonists stay valid.
-    agent_infos = build_agent_infos(agents)
-    yield {
-        "type": "scenario",
-        "data": {
-            "title": blueprint.title,
-            "scenario_type": blueprint.scenario_type,
-            "stance_spectrum": blueprint.stance_spectrum,
-            "tick_count": blueprint.tick_count,
-            "agents": [ai.model_dump(mode="json") for ai in agent_infos],
-            "max_runs": max_runs,
-        },
-    }
+        enriched_context = context or ""
+        if grounding_text:
+            enriched_context = (enriched_context + "\n" + grounding_text).strip()
 
-    run_records: list[OracleRunRecord] = []
-    last_influence_graph: InfluenceGraph | None = None
-    previous_amended: list[str] = []
-
-    for run_num in range(1, max_runs + 1):
-        logger.info("Oracle stream run %d/%d started agents=%d", run_num, max_runs, len(agents))
+        blueprint = await analyze_scenario(
+            prompt, llm=llm, context=enriched_context or None,
+            agent_count=final_agents, tick_count=final_ticks,
+        )
         yield {
-            "type": "run_start",
+            "type": "blueprint",
             "data": {
-                "run_number": run_num,
+                "title": blueprint.title,
+                "tick_count": blueprint.tick_count,
+                "stance_spectrum": blueprint.stance_spectrum,
                 "max_runs": max_runs,
-                # Agents amended by the previous iteration — lets the UI mark
-                # them in the Stage before the new run animates.
-                "amended_agent_ids": previous_amended,
             },
         }
 
-        engine = SimulationEngine(
-            blueprint=blueprint, agents=agents, llm=fast_llm or llm,
-            grounding_context=grounding_text,
-        )
+        agents = await generate_agents(blueprint, llm=llm)
 
-        tick_records: list = []
-        async for tick_record in engine.run_stream():
-            tick_records.append(tick_record)
+        # Emit the scenario once — the cast is stable across iterations, even
+        # though individual agents may get amended (rules/bias_strength) between
+        # runs. Those amendments don't change agent id/name/initial_stance so the
+        # UI's Stage/protagonists stay valid.
+        agent_infos = build_agent_infos(agents)
+        yield {
+            "type": "scenario",
+            "data": {
+                "title": blueprint.title,
+                "scenario_type": blueprint.scenario_type,
+                "stance_spectrum": blueprint.stance_spectrum,
+                "tick_count": blueprint.tick_count,
+                "agents": [ai.model_dump(mode="json") for ai in agent_infos],
+                "max_runs": max_runs,
+            },
+        }
+
+        run_records: list[OracleRunRecord] = []
+        last_influence_graph: InfluenceGraph | None = None
+        previous_amended: list[str] = []
+
+        for run_num in range(1, max_runs + 1):
+            logger.info("Oracle stream run %d/%d started agents=%d", run_num, max_runs, len(agents))
             yield {
-                "type": "tick",
+                "type": "run_start",
                 "data": {
                     "run_number": run_num,
-                    **tick_record.model_dump(mode="json"),
+                    "max_runs": max_runs,
+                    # Agents amended by the previous iteration — lets the UI mark
+                    # them in the Stage before the new run animates.
+                    "amended_agent_ids": previous_amended,
                 },
             }
 
-        last_influence_graph = engine.influence_graph
+            engine = SimulationEngine(
+                blueprint=blueprint, agents=agents, llm=fast_llm or llm,
+                grounding_context=grounding_text,
+            )
 
-        run_id = generate_run_id(prefix="oracle")
-        run_result = build_run_result(prompt, blueprint, agents, tick_records, run_id=run_id)
+            tick_records: list = []
+            async for tick_record in engine.run_stream():
+                tick_records.append(tick_record)
+                yield {
+                    "type": "tick",
+                    "data": {
+                        "run_number": run_num,
+                        **tick_record.model_dump(mode="json"),
+                    },
+                }
 
-        runs_path = Path(runs_dir)
-        runs_path.mkdir(parents=True, exist_ok=True)
-        (runs_path / f"{run_id}.json").write_text(
-            run_result.model_dump_json(indent=2, by_alias=True)
-        )
+            last_influence_graph = engine.influence_graph
 
-        evaluations = await evaluate_run(run_result, agents, llm)
-        coherence_score = sum(1 for e in evaluations if e.is_coherent) / len(evaluations)
-        failing = [e for e in evaluations if not e.is_coherent]
+            run_id = generate_run_id(prefix="oracle")
+            run_result = build_run_result(prompt, blueprint, agents, tick_records, run_id=run_id)
 
+            runs_path = Path(runs_dir)
+            runs_path.mkdir(parents=True, exist_ok=True)
+            (runs_path / f"{run_id}.json").write_text(
+                run_result.model_dump_json(indent=2, by_alias=True)
+            )
+
+            evaluations = await evaluate_run(run_result, agents, llm)
+            coherence_score = sum(1 for e in evaluations if e.is_coherent) / len(evaluations)
+            failing = [e for e in evaluations if not e.is_coherent]
+
+            logger.info(
+                "Oracle stream run %d/%d complete coherence=%.1f%% (%d/%d coherent) failing=%s",
+                run_num, max_runs, coherence_score * 100,
+                len(evaluations) - len(failing), len(evaluations),
+                [e.agent_id for e in failing] or "none",
+            )
+
+            run_records.append(OracleRunRecord(
+                run_number=run_num,
+                result=run_result,
+                evaluations=evaluations,
+                coherence_score=round(coherence_score, 4),
+                amended_agent_ids=[e.agent_id for e in failing],
+            ))
+
+            yield {
+                "type": "run_complete",
+                "data": {
+                    "run_number": run_num,
+                    "coherence_score": round(coherence_score, 4),
+                    "amended_agent_ids": [e.agent_id for e in failing],
+                    "will_amend": bool(failing) and run_num < max_runs,
+                },
+            }
+
+            if not failing:
+                logger.info(
+                    "Oracle stream: all agents coherent — stopping early after %d run(s)",
+                    run_num,
+                )
+                break
+
+            if run_num < max_runs:
+                logger.info(
+                    "Oracle stream: amending %d failing agent(s) before run %d",
+                    len(failing), run_num + 1,
+                )
+                amended_agents = []
+                for agent in agents:
+                    failing_eval = next((e for e in failing if e.agent_id == agent.id), None)
+                    if failing_eval:
+                        tick_pairs = extract_agent_tick_pairs(run_result, agent.id)
+                        amended = await amend_agent(agent, failing_eval, tick_pairs, llm)
+                        amended_agents.append(amended)
+                    else:
+                        amended_agents.append(agent)
+                agents = amended_agents
+                previous_amended = [e.agent_id for e in failing]
+
+        decision_summary = None
+        if run_records and last_influence_graph:
+            final_result = run_records[-1].result
+            decision_summary = await generate_decision_summary(
+                final_result, last_influence_graph, llm,
+                has_grounding=bool(document_text),
+            )
+
+        final_coherence = run_records[-1].coherence_score if run_records else 0.0
         logger.info(
-            "Oracle stream run %d/%d complete coherence=%.1f%% (%d/%d coherent) failing=%s",
-            run_num, max_runs, coherence_score * 100,
-            len(evaluations) - len(failing), len(evaluations),
-            [e.agent_id for e in failing] or "none",
+            "Oracle stream complete runs=%d final_coherence=%.1f%%",
+            len(run_records), final_coherence * 100,
         )
 
-        run_records.append(OracleRunRecord(
-            run_number=run_num,
-            result=run_result,
-            evaluations=evaluations,
-            coherence_score=round(coherence_score, 4),
-            amended_agent_ids=[e.agent_id for e in failing],
-        ))
-
-        yield {
-            "type": "run_complete",
-            "data": {
-                "run_number": run_num,
-                "coherence_score": round(coherence_score, 4),
-                "amended_agent_ids": [e.agent_id for e in failing],
-                "will_amend": bool(failing) and run_num < max_runs,
-            },
-        }
-
-        if not failing:
-            logger.info(
-                "Oracle stream: all agents coherent — stopping early after %d run(s)",
-                run_num,
-            )
-            break
-
-        if run_num < max_runs:
-            logger.info(
-                "Oracle stream: amending %d failing agent(s) before run %d",
-                len(failing), run_num + 1,
-            )
-            amended_agents = []
-            for agent in agents:
-                failing_eval = next((e for e in failing if e.agent_id == agent.id), None)
-                if failing_eval:
-                    tick_pairs = extract_agent_tick_pairs(run_result, agent.id)
-                    amended = await amend_agent(agent, failing_eval, tick_pairs, llm)
-                    amended_agents.append(amended)
-                else:
-                    amended_agents.append(agent)
-            agents = amended_agents
-            previous_amended = [e.agent_id for e in failing]
-
-    decision_summary = None
-    if run_records and last_influence_graph:
-        final_result = run_records[-1].result
-        decision_summary = await generate_decision_summary(
-            final_result, last_influence_graph, llm,
-            has_grounding=bool(document_text),
+        result = OracleLoopResult(
+            prompt=prompt,
+            runs=run_records,
+            coherence_history=[r.coherence_score for r in run_records],
+            decision_summary=decision_summary,
+            influence_graph=last_influence_graph,
+            jev_shadow=shadow,
         )
 
-    final_coherence = run_records[-1].coherence_score if run_records else 0.0
-    logger.info(
-        "Oracle stream complete runs=%d final_coherence=%.1f%%",
-        len(run_records), final_coherence * 100,
-    )
-
-    result = OracleLoopResult(
-        prompt=prompt,
-        runs=run_records,
-        coherence_history=[r.coherence_score for r in run_records],
-        decision_summary=decision_summary,
-        influence_graph=last_influence_graph,
-    )
-
-    yield {"type": "done", "data": result.model_dump(mode="json")}
+        yield {"type": "done", "data": result.model_dump(mode="json")}
+    finally:
+        stop_shadow(shadow_token)

@@ -189,6 +189,8 @@ class OracleLoopResult(BaseModel):
     coherence_history: list[float]
     decision_summary: "DecisionSummary | None" = None
     influence_graph: "InfluenceGraph | None" = None
+    # Jev shadow comparisons (pythia.jev.core.record_shadow) collected during the loop.
+    jev_shadow: list[dict] = Field(default_factory=list)
 
 
 class OracleRequest(BaseModel):
@@ -345,6 +347,8 @@ class RunResultWithInsights(BaseModel):
     # The Oracle's Method — metadata about how this run was computed
     methodology: "SimulationMethodology | None" = None
     quality: RunQuality | None = None
+    # Jev shadow comparisons (pythia.jev.core.record_shadow) collected during the run.
+    jev_shadow: list[dict] = Field(default_factory=list)
 
 
 class SimulationMethodology(BaseModel):
