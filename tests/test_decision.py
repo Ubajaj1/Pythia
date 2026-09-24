@@ -197,3 +197,22 @@ class TestBuildDecisionPrompt:
         reading = compute_confidence([0.80, 0.35])
         prompt = _build_decision_prompt(result, graph, reading)
         assert "Should we raise a Series A?" in prompt
+
+
+def _result_with_final(final: float) -> RunResult:
+    result = make_run_result()
+    return result.model_copy(update={
+        "summary": result.summary.model_copy(update={"final_aggregate_stance": final}),
+    })
+
+
+async def test_verdict_label_follows_final_aggregate():
+    llm = FakeLLMClient(responses=[{"verdict": "Raise immediately"}])
+    summary = await generate_decision_summary(_result_with_final(0.28), make_influence_graph(), llm)
+    assert summary.verdict_label == "against"
+
+
+async def test_prompt_pins_the_direction():
+    llm = FakeLLMClient(responses=[{}])
+    await generate_decision_summary(_result_with_final(0.28), make_influence_graph(), llm)
+    assert 'must describe an outcome of "against"' in llm.calls[0]["prompt"]

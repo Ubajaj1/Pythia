@@ -180,6 +180,17 @@ function generateDemoTicks(agents, tickCount = 20) {
  * + methodology. Derived from the generated ticks so the numbers are
  * self-consistent with what the user just watched.
  */
+// The verdict must agree with the final aggregate: the demo drifts either way.
+export function demoVerdict(finalAgg) {
+  if (finalAgg < 0.45) {
+    return 'The panel leans toward selling on this Fed rate decision. Retail and momentum voices moved to the exit while institutional money held near neutral, so the move has support but is not a crowded trade.'
+  }
+  if (finalAgg > 0.55) {
+    return 'The panel leans cautiously toward accumulating on this Fed rate decision. Institutional and momentum voices converged above neutral while retail held back, so the move has support but is not a crowded trade.'
+  }
+  return 'The panel is split on this Fed rate decision. Neither camp moved the room far from neutral, so there is no clear trade yet.'
+}
+
 function buildDoneResult(ticks, agents, runId) {
   const finalTick = ticks[ticks.length - 1]
   const finalAgg = finalTick?.aggregate_stance ?? 0.5
@@ -224,10 +235,10 @@ function buildDoneResult(ticks, agents, runId) {
   })
 
   const decisionSummary = {
-    verdict: `The panel leans cautiously toward accumulating on this Fed rate decision, with institutional and momentum voices converging above neutral while the retail and contrarian camps hold back — meaning the move has support but isn't a crowded trade.`,
+    verdict: demoVerdict(finalAgg),
     verdict_stance: finalAgg,
     confidence,
-    confidence_rationale: `σ=${sigma.toFixed(2)} with ${leaning > 0.12 ? 'a clear' : 'a modest'} lean above neutral (agg ${finalAgg.toFixed(2)}). ${confidence === 'moderate' ? 'Disagreement persists, but the direction is consistent.' : confidence === 'high' ? 'Tight alignment on direction.' : 'Dispersion is wide.'}`,
+    confidence_rationale: `σ=${sigma.toFixed(2)} with ${leaning > 0.12 ? 'a clear' : 'a modest'} lean ${finalAgg < 0.5 ? 'below' : 'above'} neutral (agg ${finalAgg.toFixed(2)}). ${confidence === 'moderate' ? 'Disagreement persists, but the direction is consistent.' : confidence === 'high' ? 'Tight alignment on direction.' : 'Dispersion is wide.'}`,
     arguments_for: [
       arg(
         top[0] ?? ranked[0],

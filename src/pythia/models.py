@@ -300,6 +300,8 @@ class DecisionSummary(BaseModel):
     """Human-readable interpretation of what the simulation means for the user's decision."""
     verdict: str
     verdict_stance: float
+    # Stance-spectrum label for the final aggregate, computed from the numbers (never by the LLM).
+    verdict_label: str | None = None
     confidence: str  # "high", "moderate", "low", "polarized"
     confidence_rationale: str
     # Dispersion metrics (computed deterministically, not LLM-picked) — see pythia.confidence

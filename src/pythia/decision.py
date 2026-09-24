@@ -6,6 +6,7 @@ import logging
 import re
 
 from pythia.confidence import ConfidenceReading, compute_confidence
+from pythia.engine import _stance_to_label
 from pythia.llm import LLMClient
 from pythia.models import (
     DecisionSummary,
@@ -64,6 +65,12 @@ def _build_decision_prompt(
         f"  Conviction: {reading.conviction} (aggregate {reading.aggregate:.2f}, "
         f"distance from neutral {abs(reading.aggregate - 0.5):.2f})",
         f"  Stance spread (max − min): {reading.stance_spread:.2f}",
+        "",
+    ]
+    label = _stance_to_label(result.summary.final_aggregate_stance, result.scenario.stance_spectrum)
+    lines += [
+        f"FINAL AGGREGATE: {result.summary.final_aggregate_stance:.2f} = \"{label}\".",
+        f"Your verdict must describe an outcome of \"{label}\". Do not describe the panel as leaning the other way.",
         "",
         "Agent final positions:",
     ]
@@ -216,6 +223,7 @@ async def generate_decision_summary(
     summary = DecisionSummary(
         verdict=str(raw.get("verdict", "The simulation did not reach a clear conclusion.")),
         verdict_stance=result.summary.final_aggregate_stance,
+        verdict_label=_stance_to_label(result.summary.final_aggregate_stance, result.scenario.stance_spectrum),
         confidence=reading.label,
         confidence_rationale=rationale,
         agreement_label=reading.agreement,
