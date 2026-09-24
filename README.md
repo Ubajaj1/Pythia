@@ -39,6 +39,25 @@ docker compose --profile ollama up --build
 docker compose exec ollama ollama pull llama3.1:8b
 ```
 
+### Choosing models
+
+Pythia uses two model roles: **main** (scenario analysis, agent generation, the decision summary) and **tick** (each agent's turn, the bulk of the calls). With one provider key set, it picks sensible defaults:
+
+| Provider | Main | Tick |
+|---|---|---|
+| Anthropic | `claude-opus-5` (`ANTHROPIC_MODEL`) | `claude-haiku-4-5` (`ANTHROPIC_TICK_MODEL`) |
+| Groq | `openai/gpt-oss-120b` (`GROQ_MODEL`) | `openai/gpt-oss-20b` (`GROQ_FAST_MODEL`) |
+| OpenAI / Ollama | `OPENAI_MODEL` / `llama3.1:8b` | same as main |
+
+To set either role explicitly, use `provider:model`:
+
+```bash
+PYTHIA_MAIN_MODEL=openai:gpt-4.1-mini
+PYTHIA_TICK_MODEL=openai:gpt-4.1-nano
+```
+
+Each finished run reports its token use and cost (when every model it used has a known price) under `quality.usage`, along with how many agent turns had to be retried or fell back.
+
 ---
 
 ## Try it
