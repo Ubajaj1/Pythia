@@ -7,6 +7,7 @@ import json
 import logging
 
 from pythia.biases import BIAS_CATALOG, resolve_bias
+from pythia.jev.behaviour import apply_behaviour_judgement
 from pythia.llm import LLMClient
 from pythia.models import Agent, AgentArchetype, Relationship, ScenarioBlueprint
 
@@ -382,6 +383,9 @@ async def generate_agents(
 
     # Pass 2: assign relationships
     agents = await _assign_relationships(agents, llm)
+
+    # Jev judges bias, strength, starting stance, and relationships (off unless enabled).
+    agents = await apply_behaviour_judgement(agents, blueprint)
 
     # Ensure at least one moderate voice when the panel is U-shaped. This adds
     # missing composition (a real-world panel usually has a fence-sitter) without
