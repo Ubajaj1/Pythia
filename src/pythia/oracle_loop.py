@@ -20,6 +20,7 @@ from pythia.models import (
     OracleRunRecord,
 )
 from pythia.jev.core import start_shadow, stop_shadow
+from pythia.jev.report import save_shadow
 from pythia.summary import agent_infos as build_agent_infos, build_run_result, generate_run_id
 from pythia.temple import amend_agent
 
@@ -151,6 +152,8 @@ async def run_oracle_loop(
             len(run_records), final_coherence * 100,
         )
 
+        # The loop result isn't saved whole; keep its Jev comparisons for the shadow report.
+        save_shadow(runs_dir, shadow, generate_run_id("oracle"))
         return OracleLoopResult(
             prompt=prompt,
             runs=run_records,
@@ -375,6 +378,7 @@ async def stream_oracle_loop(
             jev_shadow=shadow,
         )
 
+        save_shadow(runs_dir, shadow, generate_run_id("oracle"))
         yield {"type": "done", "data": result.model_dump(mode="json")}
     finally:
         stop_shadow(shadow_token)
