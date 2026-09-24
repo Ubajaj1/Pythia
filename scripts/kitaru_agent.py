@@ -26,8 +26,10 @@ async def main() -> None:
     model_map = await sdk.read_model_map()
     await sdk.close()
     arm = "swap-gpt4omini" if model_map else "baseline-replay"
+    # Sessions recorded before models were stored in inputs used the Groq gpt-oss pair.
+    models = inputs.get("models") or {"main": "openai/gpt-oss-120b", "tick": "openai/gpt-oss-20b"}
     row = await record_one(inputs["prompt"], int(inputs.get("repeat", 0)), arm, model_map=model_map,
-                           extra_metadata={"replay_id": replay_id})
+                           extra_metadata={"replay_id": replay_id}, models=models)
     print(json.dumps({"session_id": row["session_id"], "direction": row["metrics"]["direction"]}))
 
 

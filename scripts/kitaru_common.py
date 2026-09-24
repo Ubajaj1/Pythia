@@ -9,9 +9,10 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 MANIFEST = REPO / "data" / "kitaru" / "cohort.jsonl"
 AGENT_COUNT, TICK_COUNT = 5, 8
-# Groq retired the Llama 3.x models Pythia defaulted to; these are its current equivalents.
-MAIN_MODEL = "openai/gpt-oss-120b"   # analysis, generation, judge
-TICK_MODEL = "openai/gpt-oss-20b"    # agent turns (the role the replay swaps)
+# Groq retired the Llama 3.x models and its free tier (8k tokens/min) is too slow for 30 sessions,
+# so the cohort runs on OpenAI. Sessions store the models they used; replays reuse them.
+MAIN_MODEL = "gpt-4.1-mini"   # analysis, generation, judge
+TICK_MODEL = "gpt-4.1-nano"   # agent turns (the role the replay swaps)
 SWAP_MAP = {TICK_MODEL: "gpt-4o-mini"}
 
 
@@ -28,18 +29,22 @@ def load_env(path: Path = REPO / ".env") -> None:
 
 
 async def record_one(prompt: str, repeat: int, arm: str, model_map: dict[str, str] | None = None,
-                     extra_metadata: dict | None = None) -> dict:
-    """Run one simulation with Groq main/tick/judge clients, recorded as one Kitaru session."""
+                     extra_metadata: dict | None = None, models: dict[str, str] | None = None) -> dict:
+    """Run one simulation with main/tick/judge clients, recorded as one Kitaru session.
+
+    `models` ({"main": ..., "tick": ...}) defaults to MAIN_MODEL / TICK_MODEL; replays pass the
+    models stored in the recorded session's inputs so they reproduce the original configuration.
+    """
     from pythia.experiment import run_experiment_once
     from pythia.kitaru_recorder import KitaruRecorder
-    from pythia.llm import build_llm_client
-    from pythia.recording import RecordingLLMClient
+    from pythia.recording import RecordingLLMClient, client_for_model
 
+    models = models or {"main": MAIN_MODEL, "tick": TICK_MODEL}
     recorder = KitaruRecorder(model_map=model_map)
-    main = RecordingLLMClient(build_llm_client(provider="groq", model=MAIN_MODEL), "main", recorder)
-    tick = RecordingLLMClient(build_llm_client(provider="groq", model=TICK_MODEL), "tick", recorder)
-    judge = RecordingLLMClient(build_llm_client(provider="groq", model=MAIN_MODEL), "judge", recorder)
-    inputs = {"prompt": prompt, "agent_count": AGENT_COUNT, "tick_count": TICK_COUNT, "repeat": repeat}
+    main = RecordingLLMClient(client_for_model(models["main"]), "main", recorder)
+    tick = RecordingLLMClient(client_for_model(models["tick"]), "tick", recorder)
+    judge = RecordingLLMClient(client_for_model(models["main"]), "judge", recorder)
+    inputs = {"prompt": prompt, "agent_count": AGENT_COUNT, "tick_count": TICK_COUNT, "repeat": repeat, "models": models}
     metadata = {"arm": arm, "repeat": str(repeat), **(extra_metadata or {})}
     session_id = await recorder.start(inputs, name=prompt, metadata=metadata)
     try:
