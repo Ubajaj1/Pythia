@@ -92,3 +92,16 @@ async def test_primary_keeps_llm_relationships_when_unsure():
     answers["rel:a->b"] = Answer("distrusts", 0.2, {"distrusts": 0.2})
     out = await apply_behaviour_judgement(_agents(), _bp(), jev=FakeJev(answers), mode="primary")
     assert [(r.target, r.type) for r in out[0].relationships] == [("b", "follows")]
+
+
+async def test_relationships_are_recorded_per_pair():
+    records, token = start_shadow()
+    try:
+        await apply_behaviour_judgement(_agents(), _bp(), jev=FakeJev(_answers()), mode="shadow")
+    finally:
+        stop_shadow(token)
+    pairs = {r["key"]: r for r in records if r["key"].endswith(":relationship")}
+    assert set(pairs) == {"a->b:relationship", "b->a:relationship"}
+    assert pairs["a->b:relationship"]["llm"] == "follows" and pairs["a->b:relationship"]["jev"] == "distrusts"
+    assert pairs["a->b:relationship"]["agree"] is False
+    assert pairs["b->a:relationship"]["llm"] == "none" and pairs["b->a:relationship"]["agree"] is True

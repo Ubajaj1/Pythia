@@ -62,3 +62,19 @@ def load_shadow(runs_dir: str) -> list[dict]:
         for r in data.get("jev_shadow", []) if isinstance(data, dict) else []:
             records.append({**r, "run": f.stem})
     return records
+
+
+def field_of(record: dict) -> str:
+    """Behaviour rows split by field (bias, strength, stance, relationship); other pieces by piece."""
+    return record["key"].rsplit(":", 1)[-1] if record["piece"] == "behaviour" else record["piece"]
+
+
+def relationship_stats(records: list[dict], min_conf: float = 0.7) -> dict:
+    """Relationship pairs are mostly "none"; agreement on pairs either side links is the honest number."""
+    rows = [r for r in records if field_of(r) == "relationship" and r["confidence"] >= min_conf]
+    linked = [r for r in rows if r["llm"] != "none" or r["jev"] != "none"]
+    return {
+        "pairs": len(rows),
+        "linked_pairs": len(linked),
+        "agreement_linked": sum(1 for r in linked if r["agree"]) / len(linked) if linked else 0.0,
+    }

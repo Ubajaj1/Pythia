@@ -42,3 +42,22 @@ def test_save_and_load_shadow(tmp_path):
     (tmp_path / "run-2.json").write_text(json.dumps({"run_id": "run-2"}))
     rows = load_shadow(str(tmp_path))
     assert sorted(r["run"] for r in rows) == ["oracle-x.jev", "run-1"]
+
+
+def test_field_splits_behaviour_keys():
+    from pythia.jev.report import field_of
+    assert field_of({"piece": "behaviour", "key": "a:bias"}) == "bias"
+    assert field_of({"piece": "behaviour", "key": "a->b:relationship"}) == "relationship"
+    assert field_of({"piece": "stance", "key": "3:a"}) == "stance"
+
+
+def test_relationship_stats_exclude_none_none_pairs():
+    from pythia.jev.report import relationship_stats
+    rows = [
+        {"piece": "behaviour", "key": "a->b:relationship", "llm": "none", "jev": "none", "confidence": 0.9, "agree": True},
+        {"piece": "behaviour", "key": "a->c:relationship", "llm": "follows", "jev": "follows", "confidence": 0.9, "agree": True},
+        {"piece": "behaviour", "key": "a->d:relationship", "llm": "none", "jev": "rivals", "confidence": 0.9, "agree": False},
+    ]
+    s = relationship_stats(rows)
+    assert s["pairs"] == 3 and s["linked_pairs"] == 2
+    assert abs(s["agreement_linked"] - 0.5) < 1e-9

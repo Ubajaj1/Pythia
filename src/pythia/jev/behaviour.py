@@ -104,15 +104,16 @@ async def apply_behaviour_judgement(
         if use:
             upd["initial_stance"] = st_val
 
-        # Relationships are judged as a set: Jev's replace the LLM's only when every
-        # pair answer for this agent (including "none") clears the threshold.
+        # Relationships are recorded per ordered pair, but applied as a set: Jev's replace
+        # the LLM's only when every pair answer for this agent (including "none") clears the threshold.
         llm_rel = {r.target: r.type for r in a.relationships}
-        mine = jev_rels.get(a.id, [])
-        jev_rel = {t: ty for t, ty, _ in mine}
-        rel_conf = min((ans.confidence for (src, _), ans in rel_pairs.items() if src == a.id), default=0.0)
-        use = primary and rel_conf >= cut
-        record_shadow(PIECE, f"{a.id}:relationships", llm_rel, jev_rel, rel_conf, llm_rel == jev_rel, "jev" if use else "llm")
+        my_pairs = {tgt: ans for (src, tgt), ans in rel_pairs.items() if src == a.id}
+        use = primary and bool(my_pairs) and min(ans.confidence for ans in my_pairs.values()) >= cut
+        for tgt, ans in my_pairs.items():
+            llm_type = llm_rel.get(tgt, "none")
+            record_shadow(PIECE, f"{a.id}->{tgt}:relationship", llm_type, ans.value, ans.confidence,
+                          ans.value == llm_type, "jev" if use else "llm")
         if use:
-            upd["relationships"] = [Relationship(target=t, type=ty, weight=w) for t, ty, w in mine]
+            upd["relationships"] = [Relationship(target=t, type=ty, weight=w) for t, ty, w in jev_rels.get(a.id, [])]
         out.append(a.model_copy(update=upd) if upd else a)
     return out
