@@ -12,16 +12,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from pythia.config import (
-    ANTHROPIC_API_KEY,
-    GROQ_API_KEY,
-    GROQ_FAST_MODEL,
-    OLLAMA_BASE_URL,
-    OLLAMA_MODEL,
-    OPENAI_API_KEY,
-    RUNS_DIR,
-)
-from pythia.llm import build_llm_client
+from pythia.config import OLLAMA_BASE_URL, RUNS_DIR
+from pythia.llm import build_role_clients
 from pythia.models import BacktestRequest, EnsembleRequest, OracleRequest, SimulateRequest, SimulateRequestWithDocs
 from pythia.oracle_loop import run_oracle_loop, stream_oracle_loop
 from pythia.orchestrator import run_simulation, stream_simulation
@@ -58,24 +50,7 @@ def create_app(
         allow_headers=["*"],
     )
 
-    llm = build_llm_client(provider=provider, ollama_url=ollama_url, model=model)
-
-    # The "fast LLM" is a cheap per-tick model used inside the simulation engine
-    # while the main LLM is used for analyzer / generator / decision summary.
-    # It ONLY makes sense when the effective provider is Groq — passing a Groq
-    # model name to Anthropic/OpenAI would 404. Compute the effective provider
-    # here so we don't rely on `provider is None` as a proxy for "Groq".
-    effective_provider = provider or (
-        "anthropic" if ANTHROPIC_API_KEY else
-        "groq"      if GROQ_API_KEY else
-        "openai"    if OPENAI_API_KEY else
-        "ollama"
-    )
-    fast_llm = (
-        build_llm_client(provider="groq", ollama_url=ollama_url, model=GROQ_FAST_MODEL)
-        if effective_provider == "groq" and GROQ_API_KEY and not model
-        else None
-    )
+    llm, fast_llm = build_role_clients(provider=provider, ollama_url=ollama_url, model=model)
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
@@ -122,6 +97,7 @@ def create_app(
             prompt=request.prompt,
             context=request.context,
             llm=llm,
+            fast_llm=fast_llm,
             runs_dir=runs_dir,
             document_text=request.document_text,
             document_name=request.document_name,

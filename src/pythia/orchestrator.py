@@ -169,6 +169,7 @@ async def run_simulation(
     agent_count: int | None = None,
     tick_count: int | None = None,
     preset: str | None = None,
+    fast_llm: LLMClient | None = None,
 ) -> RunResultWithInsights:
     """Run the full simulation pipeline and return enriched results."""
     final_agents, final_ticks = _resolve_counts(preset, agent_count, tick_count)
@@ -192,7 +193,7 @@ async def run_simulation(
 
     # 4. Run simulation with influence tracking
     engine = SimulationEngine(
-        blueprint=blueprint, agents=agents, llm=llm,
+        blueprint=blueprint, agents=agents, llm=fast_llm or llm,
         grounding_context=grounding_text,
     )
     ticks = await engine.run()

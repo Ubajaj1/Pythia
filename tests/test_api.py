@@ -145,73 +145,54 @@ class TestOracleEndpoint:
 
 
 class TestFastLLMProvisioning:
-    """Regression: fast_llm must only spin up when the effective provider is Groq.
+    """Regression: the tick client must always match its own provider.
 
-    Previously, if the user had both ANTHROPIC_API_KEY and GROQ_API_KEY set,
-    the app would auto-detect Anthropic as the main provider but then build a
-    fast_llm that re-detected Anthropic and handed it a Groq model name,
-    producing 404s against api.anthropic.com/v1/messages.
+    Previously, with both ANTHROPIC_API_KEY and GROQ_API_KEY set, the app
+    auto-detected Anthropic as the main provider but handed a Groq model name
+    to an Anthropic client, producing 404s against api.anthropic.com.
     """
 
-    async def test_fast_llm_built_only_for_groq(self, monkeypatch):
-        """Explicit provider=groq path gets a fast_llm."""
-        from pythia import api as api_module
+    @pytest.fixture
+    def calls(self, monkeypatch):
+        from pythia import llm as llm_module
         calls: list[dict] = []
 
         def fake_build(provider=None, ollama_url=None, model=None):
             calls.append({"provider": provider, "model": model})
             return object()
 
-        monkeypatch.setattr(api_module, "build_llm_client", fake_build)
-        monkeypatch.setattr(api_module, "GROQ_API_KEY", "groq-key")
-        monkeypatch.setattr(api_module, "ANTHROPIC_API_KEY", "")
-        monkeypatch.setattr(api_module, "OPENAI_API_KEY", "")
+        monkeypatch.setattr(llm_module, "build_llm_client", fake_build)
+        monkeypatch.delenv("PYTHIA_MAIN_MODEL", raising=False)
+        monkeypatch.delenv("PYTHIA_TICK_MODEL", raising=False)
+        return calls
+
+    async def test_groq_gets_groq_tick_model(self, calls, monkeypatch):
+        from pythia import api as api_module
+        monkeypatch.setattr("pythia.config.GROQ_API_KEY", "groq-key")
+        monkeypatch.setattr("pythia.config.ANTHROPIC_API_KEY", "")
 
         api_module.create_app(provider="groq")
 
-        # Two builds expected: main llm + fast_llm
         assert len(calls) == 2
         assert calls[1]["provider"] == "groq"
-        # Fast model must be a Groq model name
-        assert "llama" in (calls[1]["model"] or "").lower()
+        assert calls[1]["model"].startswith("openai/gpt-oss")
 
-    async def test_fast_llm_not_built_when_anthropic_auto_detected(self, monkeypatch):
-        """Regression for 404: with ANTHROPIC_API_KEY set and provider=None,
-        we must NOT build a fast_llm using a Groq model."""
+    async def test_anthropic_auto_detected_never_gets_groq_model(self, calls, monkeypatch):
         from pythia import api as api_module
-        calls: list[dict] = []
-
-        def fake_build(provider=None, ollama_url=None, model=None):
-            calls.append({"provider": provider, "model": model})
-            return object()
-
-        monkeypatch.setattr(api_module, "build_llm_client", fake_build)
-        monkeypatch.setattr(api_module, "GROQ_API_KEY", "groq-key")       # both keys set
-        monkeypatch.setattr(api_module, "ANTHROPIC_API_KEY", "anth-key")  # both keys set
-        monkeypatch.setattr(api_module, "OPENAI_API_KEY", "")
+        monkeypatch.setattr("pythia.config.GROQ_API_KEY", "groq-key")       # both keys set
+        monkeypatch.setattr("pythia.config.ANTHROPIC_API_KEY", "anth-key")  # both keys set
 
         api_module.create_app()  # provider=None — auto-detect
 
-        # Only one build expected: the main llm. No fast_llm.
-        assert len(calls) == 1, (
-            f"Expected no fast_llm when Anthropic is auto-detected, got: {calls}"
-        )
+        assert len(calls) == 2
+        assert calls[1] == {"provider": "anthropic", "model": "claude-haiku-4-5"}
 
-    async def test_fast_llm_not_built_when_user_specifies_model(self, monkeypatch):
-        """If the user explicitly sets a model, don't override with Groq fast model."""
+    async def test_no_tick_split_when_user_specifies_model(self, calls, monkeypatch):
         from pythia import api as api_module
-        calls: list[dict] = []
+        monkeypatch.setattr("pythia.config.GROQ_API_KEY", "groq-key")
+        monkeypatch.setattr("pythia.config.ANTHROPIC_API_KEY", "")
 
-        def fake_build(provider=None, ollama_url=None, model=None):
-            calls.append({"provider": provider, "model": model})
-            return object()
-
-        monkeypatch.setattr(api_module, "build_llm_client", fake_build)
-        monkeypatch.setattr(api_module, "GROQ_API_KEY", "groq-key")
-        monkeypatch.setattr(api_module, "ANTHROPIC_API_KEY", "")
-        monkeypatch.setattr(api_module, "OPENAI_API_KEY", "")
-
-        api_module.create_app(provider="groq", model="llama-3.3-70b-versatile")
+        api_module.create_app(provider="groq", model="openai/gpt-oss-120b")
 
         assert len(calls) == 1
-        assert calls[0]["model"] == "llama-3.3-70b-versatile"
+        assert calls[0]["model"] == "openai/gpt-oss-120b"

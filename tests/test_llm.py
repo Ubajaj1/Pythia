@@ -118,3 +118,56 @@ class TestOllamaClient:
         )
         with pytest.raises(RuntimeError, match="Ollama returned HTTP 404"):
             await client.generate("prompt")
+
+
+from pythia import llm as llm_mod
+
+
+def test_parse_model_spec():
+    assert llm_mod.parse_model_spec("anthropic:claude-haiku-4-5") == ("anthropic", "claude-haiku-4-5")
+    with pytest.raises(ValueError):
+        llm_mod.parse_model_spec("claude-haiku-4-5")
+
+
+def test_role_env_specs_win(monkeypatch):
+    built = []
+    monkeypatch.setattr(llm_mod, "build_llm_client", lambda provider=None, ollama_url=None, model=None: built.append((provider, model)) or (provider, model))
+    monkeypatch.setenv("PYTHIA_MAIN_MODEL", "openai:gpt-4o-mini")
+    monkeypatch.setenv("PYTHIA_TICK_MODEL", "groq:openai/gpt-oss-20b")
+    main, tick = llm_mod.build_role_clients()
+    assert main == ("openai", "gpt-4o-mini")
+    assert tick == ("groq", "openai/gpt-oss-20b")
+
+
+def test_anthropic_default_gets_haiku_tick(monkeypatch):
+    monkeypatch.delenv("PYTHIA_MAIN_MODEL", raising=False)
+    monkeypatch.delenv("PYTHIA_TICK_MODEL", raising=False)
+    monkeypatch.setattr("pythia.config.ANTHROPIC_API_KEY", "k")
+    monkeypatch.setattr(llm_mod, "build_llm_client", lambda provider=None, ollama_url=None, model=None: (provider, model))
+    main, tick = llm_mod.build_role_clients()
+    assert main == (None, None)
+    assert tick == ("anthropic", "claude-haiku-4-5")
+
+
+def test_explicit_model_disables_tick_split(monkeypatch):
+    monkeypatch.delenv("PYTHIA_TICK_MODEL", raising=False)
+    monkeypatch.delenv("PYTHIA_MAIN_MODEL", raising=False)
+    monkeypatch.setattr(llm_mod, "build_llm_client", lambda provider=None, ollama_url=None, model=None: (provider, model))
+    main, tick = llm_mod.build_role_clients(model="gpt-4o")
+    assert tick is None
+
+
+def test_groq_defaults_are_current_models(monkeypatch):
+    # Groq retired the Llama 3.x models in 2026; the defaults must not point at them.
+    import importlib
+    from pythia import config
+    monkeypatch.delenv("GROQ_MODEL", raising=False)
+    monkeypatch.delenv("GROQ_FAST_MODEL", raising=False)
+    fresh = importlib.reload(config)
+    try:
+        assert (fresh.GROQ_MODEL, fresh.GROQ_FAST_MODEL) == ("openai/gpt-oss-120b", "openai/gpt-oss-20b")
+        assert fresh.GROQ_MODEL in llm_mod._GROQ_RPM_BY_MODEL
+        assert fresh.GROQ_FAST_MODEL in llm_mod._GROQ_RPM_BY_MODEL
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)

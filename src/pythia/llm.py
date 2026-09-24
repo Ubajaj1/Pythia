@@ -109,6 +109,11 @@ class OllamaClient:
 # Override via GROQ_RPM / OPENAI_RPM env vars if you have higher limits.
 
 _GROQ_RPM_BY_MODEL = {
+    # Current Groq models. The free tier also caps each at ~8k tokens/min,
+    # which binds before RPM: a 5-agent, 8-tick run takes about 15 minutes.
+    "openai/gpt-oss-120b": 30,
+    "openai/gpt-oss-20b": 30,
+    # Retired by Groq in 2026; kept so explicit overrides still get a sane RPM.
     "llama-3.3-70b-versatile": 30,
     "llama-3.1-70b-versatile": 30,
     "llama-3.1-8b-instant": 6000,
@@ -193,3 +198,53 @@ def build_llm_client(
 
     logger.info("LLM provider=ollama url=%s model=%s", ollama_url or OLLAMA_BASE_URL, model or OLLAMA_MODEL)
     return OllamaClient(base_url=ollama_url or OLLAMA_BASE_URL, model=model or OLLAMA_MODEL)
+
+
+def parse_model_spec(spec: str) -> tuple[str, str]:
+    """Split "provider:model" into its parts."""
+    provider, sep, model = spec.partition(":")
+    if not sep or not provider or not model:
+        raise ValueError(f"Model spec must look like 'provider:model', got {spec!r}")
+    return provider, model
+
+
+def build_role_clients(
+    provider: str | None = None,
+    ollama_url: str | None = None,
+    model: str | None = None,
+) -> tuple[LLMClient, LLMClient | None]:
+    """Return (main, tick) clients.
+
+    main runs analysis, generation, and summaries; tick runs per-agent turns.
+    Priority: PYTHIA_MAIN_MODEL / PYTHIA_TICK_MODEL env specs > provider defaults.
+    tick is None when one client should do everything (explicit --model, Ollama, OpenAI).
+    """
+    import os
+    from pythia import config
+
+    main_spec = os.getenv("PYTHIA_MAIN_MODEL")
+    tick_spec = os.getenv("PYTHIA_TICK_MODEL")
+
+    if main_spec:
+        p, m = parse_model_spec(main_spec)
+        main = build_llm_client(provider=p, ollama_url=ollama_url, model=m)
+    else:
+        main = build_llm_client(provider=provider, ollama_url=ollama_url, model=model)
+
+    if tick_spec:
+        p, m = parse_model_spec(tick_spec)
+        return main, build_llm_client(provider=p, ollama_url=ollama_url, model=m)
+    if model or main_spec:
+        return main, None
+
+    effective = provider or (
+        "anthropic" if config.ANTHROPIC_API_KEY else
+        "groq" if config.GROQ_API_KEY else
+        "openai" if config.OPENAI_API_KEY else
+        "ollama"
+    )
+    if effective == "anthropic":
+        return main, build_llm_client(provider="anthropic", ollama_url=ollama_url, model=config.ANTHROPIC_TICK_MODEL)
+    if effective == "groq":
+        return main, build_llm_client(provider="groq", ollama_url=ollama_url, model=config.GROQ_FAST_MODEL)
+    return main, None
