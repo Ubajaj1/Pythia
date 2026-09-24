@@ -124,6 +124,7 @@ def create_app(
             prompt=request.prompt,
             context=request.context,
             max_runs=request.max_runs,
+            fast_llm=fast_llm,
             llm=llm,
             runs_dir=runs_dir,
             document_text=request.document_text,

@@ -34,33 +34,37 @@ def _print_summary(result) -> None:
 
 
 async def _run(args: argparse.Namespace) -> None:
-    from pythia.llm import build_llm_client
+    from pythia.llm import build_role_clients
     from pythia.orchestrator import run_simulation
 
-    llm = build_llm_client(provider=args.provider, ollama_url=args.ollama_url, model=args.model)
+    llm, fast_llm = build_role_clients(provider=args.provider, ollama_url=args.ollama_url, model=args.model)
     try:
         result = await run_simulation(
             prompt=args.prompt,
             context=args.context,
             llm=llm,
+            fast_llm=fast_llm,
             runs_dir=args.runs_dir,
         )
         _print_summary(result)
     finally:
         await llm.close()
+        if fast_llm is not None:
+            await fast_llm.close()
 
 
 async def _run_oracle(args: argparse.Namespace) -> None:
-    from pythia.llm import build_llm_client
+    from pythia.llm import build_role_clients
     from pythia.oracle_loop import run_oracle_loop
 
-    llm = build_llm_client(provider=args.provider, ollama_url=args.ollama_url, model=args.model)
+    llm, fast_llm = build_role_clients(provider=args.provider, ollama_url=args.ollama_url, model=args.model)
     try:
         oracle_result = await run_oracle_loop(
             prompt=args.prompt,
             context=args.context,
             max_runs=args.runs,
             llm=llm,
+            fast_llm=fast_llm,
             runs_dir=args.runs_dir,
         )
         if not oracle_result.runs:
@@ -75,6 +79,8 @@ async def _run_oracle(args: argparse.Namespace) -> None:
         print(f"\nFinal coherence: {round(oracle_result.coherence_history[-1] * 100)}%")
     finally:
         await llm.close()
+        if fast_llm is not None:
+            await fast_llm.close()
 
 
 def _serve(args: argparse.Namespace) -> None:

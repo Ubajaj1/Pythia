@@ -37,6 +37,7 @@ async def run_oracle_loop(
     agent_count: int | None = None,
     tick_count: int | None = None,
     preset: str | None = None,
+    fast_llm: LLMClient | None = None,
 ) -> OracleLoopResult:
     """Run up to max_runs iterations of simulate → evaluate → amend.
 
@@ -82,7 +83,7 @@ async def run_oracle_loop(
             logger.info("Oracle run %d/%d started agents=%d", run_num, max_runs, len(agents))
 
             engine = SimulationEngine(
-                blueprint=blueprint, agents=agents, llm=llm,
+                blueprint=blueprint, agents=agents, llm=fast_llm or llm,
                 grounding_context=grounding_text,
             )
             ticks = await engine.run()
