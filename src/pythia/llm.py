@@ -193,3 +193,11 @@ def build_llm_client(
 
     logger.info("LLM provider=ollama url=%s model=%s", ollama_url or OLLAMA_BASE_URL, model or OLLAMA_MODEL)
     return OllamaClient(base_url=ollama_url or OLLAMA_BASE_URL, model=model or OLLAMA_MODEL)
+
+
+def parse_model_spec(spec: str) -> tuple[str, str]:
+    """Split "provider:model" into its parts."""
+    provider, sep, model = spec.partition(":")
+    if not sep or not provider or not model:
+        raise ValueError(f"Model spec must look like 'provider:model', got {spec!r}")
+    return provider, model
