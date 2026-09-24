@@ -15,6 +15,7 @@ import httpx
 
 from pythia.config import OPENAI_MODEL
 from pythia.rate_limiter import RateLimiter
+from pythia.usage import record_usage
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +99,10 @@ class OpenAICompatClient:
                 continue
 
             response.raise_for_status()
-            raw = response.json()["choices"][0]["message"]["content"]
+            data = response.json()
+            raw = data["choices"][0]["message"]["content"]
+            u = data.get("usage") or {}
+            record_usage(self.model, int(u.get("prompt_tokens", 0)), int(u.get("completion_tokens", 0)))
             latency_ms = round((time.perf_counter() - t0) * 1000)
 
             logger.info(

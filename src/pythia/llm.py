@@ -10,6 +10,7 @@ from typing import Protocol
 import httpx
 
 from pythia.config import OLLAMA_BASE_URL, OLLAMA_MODEL
+from pythia.usage import record_usage
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,9 @@ class OllamaClient:
                 f"Is model '{self.model}' pulled? Try: ollama pull {self.model}"
             ) from None
 
-        raw = response.json()["response"]
+        data = response.json()
+        raw = data["response"]
+        record_usage(self.model, int(data.get("prompt_eval_count", 0)), int(data.get("eval_count", 0)))
         latency_ms = round((time.perf_counter() - t0) * 1000)
 
         logger.info("LLM response latency_ms=%d response_chars=%d", latency_ms, len(raw))
@@ -94,7 +97,9 @@ class OllamaClient:
             except (httpx.ConnectError, httpx.HTTPStatusError) as exc:
                 raise RuntimeError(f"Ollama retry failed: {exc}") from None
 
-            raw = response.json()["response"]
+            data = response.json()
+            raw = data["response"]
+            record_usage(self.model, int(data.get("prompt_eval_count", 0)), int(data.get("eval_count", 0)))
             latency_ms = round((time.perf_counter() - t0) * 1000)
             logger.info("LLM retry response latency_ms=%d response_chars=%d", latency_ms, len(raw))
             logger.debug("LLM retry raw response:\n%s", raw)

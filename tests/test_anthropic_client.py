@@ -510,3 +510,17 @@ class TestCurrentModels:
         await client.generate("p")
         assert "anthropic-beta" not in seen[0].headers
         assert "fallbacks" not in json.loads(seen[0].content)
+
+
+from pythia.usage import start_usage, stop_usage
+
+
+async def test_anthropic_records_usage():
+    body = {"content": [{"type": "text", "text": "{}"}], "stop_reason": "end_turn", "usage": {"input_tokens": 100, "output_tokens": 20}}
+    client = AnthropicClient(api_key="k", model="claude-haiku-4-5", http_client=httpx.AsyncClient(transport=_mock_body(body)), rpm=0)
+    usage, token = start_usage()
+    try:
+        await client.generate("p")
+    finally:
+        stop_usage(token)
+    assert usage.input_tokens == 100 and usage.output_tokens == 20 and usage.calls == 1

@@ -11,6 +11,7 @@ import httpx
 
 from pythia.config import ANTHROPIC_MODEL
 from pythia.rate_limiter import RateLimiter
+from pythia.usage import record_usage
 
 logger = logging.getLogger(__name__)
 
@@ -246,6 +247,8 @@ class AnthropicClient:
             # Success
             body = response.json()
             stop_reason = body.get("stop_reason")
+            u = body.get("usage") or {}
+            record_usage(self.model, int(u.get("input_tokens", 0)), int(u.get("output_tokens", 0)))
             if stop_reason == "refusal":
                 category = (body.get("stop_details") or {}).get("category")
                 raise AnthropicRefusal(f"Model {self.model} declined the request (category={category}).")
