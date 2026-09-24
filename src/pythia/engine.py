@@ -8,6 +8,7 @@ import logging
 
 from pythia.biases import format_bias_for_prompt
 from pythia.bias_mechanics import apply_bias
+from pythia.jev.stance import record_expressed_stances
 from pythia.llm import LLMClient
 from pythia.models import (
     Agent,
@@ -363,6 +364,7 @@ class SimulationEngine:
         logger.debug("Agents: %s", ", ".join(f"{a.name}({a.initial_stance:.2f})" for a in self.agents))
         for tick_num in range(1, self.blueprint.tick_count + 1):
             tick_record = await self._run_tick(tick_num)
+            await record_expressed_stances(tick_record, self.blueprint)
             yield tick_record
         logger.info("Simulation complete scenario=%r", self.blueprint.title)
 
