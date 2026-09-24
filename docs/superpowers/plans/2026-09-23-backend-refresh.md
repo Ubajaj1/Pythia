@@ -20,6 +20,7 @@
 - Keep the existing raw-HTTP Anthropic client (the project deliberately uses httpx; migrating to the SDK is out of scope).
 - The existing test suite stays green after every task.
 - New SSE event types must be additive; the current UI ignores unknown event types (`App.jsx` if/else chain).
+- **Found 2026-09-24:** Groq has retired `llama-3.3-70b-versatile` and `llama-3.1-8b-instant` (404), so Pythia's Groq path is broken. In Task 3, change `GROQ_MODEL` / `GROQ_FAST_MODEL` defaults in `config.py` to `openai/gpt-oss-120b` / `openai/gpt-oss-20b`, add both to `_GROQ_RPM_BY_MODEL`, and note Groq's free tier is 8k tokens/min per model (about 15 min per 5×8 run).
 
 ---
 
