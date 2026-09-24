@@ -78,5 +78,8 @@ if __name__ == "__main__":
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--concurrency", type=int, default=2)
     ap.add_argument("--timeout", type=float, default=1800)
+    ap.add_argument("--swap-from", default=None, help="Tick model to swap for gpt-4o-mini (default: the cohort's tick model)")
     args = ap.parse_args()
+    if args.swap_from:
+        ARMS["swap-gpt4omini"] = {args.swap_from: "gpt-4o-mini"}
     asyncio.run(main(args.source_arm, args.arms, args.limit, args.concurrency, args.timeout))
