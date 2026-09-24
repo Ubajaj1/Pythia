@@ -199,3 +199,18 @@ class TestFastLLMProvisioning:
 
         assert len(calls) == 1
         assert calls[0]["model"] == "openai/gpt-oss-120b"
+
+
+async def test_guard_blocks_when_screening_says_so(monkeypatch):
+    from pythia.jev.screening import ScreenVerdict
+
+    async def block(prompt, **kw):
+        return ScreenVerdict(block=True, message="nope")
+
+    monkeypatch.setattr("pythia.api.screen_prompt", block)
+    app = create_app(ollama_url="http://fake:11434", model="test")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        for path in ("/api/simulate", "/api/simulate/stream", "/api/oracle/stream"):
+            resp = await client.post(path, json={"prompt": "x"})
+            assert resp.status_code == 422
+            assert resp.json()["detail"] == "nope"

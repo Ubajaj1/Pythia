@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from pythia.config import OLLAMA_BASE_URL, RUNS_DIR
+from pythia.jev.screening import screen_prompt
 from pythia.llm import build_role_clients
 from pythia.models import BacktestRequest, EnsembleRequest, OracleRequest, SimulateRequest, SimulateRequestWithDocs
 from pythia.oracle_loop import run_oracle_loop, stream_oracle_loop
@@ -52,6 +53,12 @@ def create_app(
 
     llm, fast_llm = build_role_clients(provider=provider, ollama_url=ollama_url, model=model)
 
+    async def guard(prompt: str) -> None:
+        """Jev prompt screening; raises 422 before any work starts (no-op unless enabled)."""
+        verdict = await screen_prompt(prompt)
+        if verdict.block:
+            raise HTTPException(status_code=422, detail=verdict.message)
+
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
         t0 = time.perf_counter()
@@ -66,6 +73,7 @@ def create_app(
 
     @app.post("/api/simulate/stream")
     async def simulate_stream(request: SimulateRequestWithDocs):
+        await guard(request.prompt)
         logger.info("Simulate stream request prompt=%r", request.prompt[:60])
 
         async def event_stream():
@@ -92,6 +100,7 @@ def create_app(
 
     @app.post("/api/simulate")
     async def simulate(request: SimulateRequestWithDocs) -> dict:
+        await guard(request.prompt)
         logger.info("Simulate request prompt=%r", request.prompt[:60])
         result = await run_simulation(
             prompt=request.prompt,
@@ -109,6 +118,7 @@ def create_app(
 
     @app.post("/api/oracle")
     async def oracle(request: OracleRequest) -> dict:
+        await guard(request.prompt)
         logger.info("Oracle request prompt=%r max_runs=%d", request.prompt[:60], request.max_runs)
         result = await run_oracle_loop(
             prompt=request.prompt,
@@ -126,6 +136,7 @@ def create_app(
 
     @app.post("/api/oracle/stream")
     async def oracle_stream(request: OracleRequest):
+        await guard(request.prompt)
         logger.info(
             "Oracle stream request prompt=%r max_runs=%d",
             request.prompt[:60], request.max_runs,
@@ -159,6 +170,7 @@ def create_app(
 
     @app.post("/api/ensemble")
     async def ensemble(request: EnsembleRequest) -> dict:
+        await guard(request.prompt)
         logger.info(
             "Ensemble request prompt=%r ensemble_size=%d",
             request.prompt[:60], request.ensemble_size,
@@ -179,6 +191,7 @@ def create_app(
 
     @app.post("/api/ensemble/stream")
     async def ensemble_stream(request: EnsembleRequest):
+        await guard(request.prompt)
         logger.info(
             "Ensemble stream request prompt=%r ensemble_size=%d",
             request.prompt[:60], request.ensemble_size,
@@ -212,6 +225,7 @@ def create_app(
 
     @app.post("/api/backtest")
     async def backtest(request: BacktestRequest) -> dict:
+        await guard(request.prompt)
         logger.info("Backtest request prompt=%r", request.prompt[:60])
         enriched, bt_result = await run_backtest(
             prompt=request.prompt,
@@ -232,6 +246,7 @@ def create_app(
 
     @app.post("/api/backtest/stream")
     async def backtest_stream(request: BacktestRequest):
+        await guard(request.prompt)
         logger.info("Backtest stream request prompt=%r", request.prompt[:60])
 
         async def event_stream():
