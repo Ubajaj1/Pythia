@@ -41,13 +41,17 @@ def disagreements(records: list[dict], piece: str, limit: int = 20) -> list[dict
     return sorted(rows, key=lambda r: -r["confidence"])[:limit]
 
 
-def save_shadow(runs_dir: str, records: list[dict], name: str) -> Path | None:
-    """Write shadow records to <runs_dir>/<name>.jev.json (for results that are not saved whole)."""
+def save_shadow(runs_dir: str, records: list[dict], name: str, context: dict | None = None) -> Path | None:
+    """Write shadow records to <runs_dir>/<name>.jev.json (for results that are not saved whole).
+
+    context (e.g. {"scenario": {...}, "agents": [...]}) is stored alongside, in the same
+    shape as a saved run, so reviewers can see the persona behind each record.
+    """
     if not records:
         return None
     path = Path(runs_dir) / f"{name}.jev.json"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"jev_shadow": records}, indent=2, default=str))
+    path.write_text(json.dumps({**(context or {}), "jev_shadow": records}, indent=2, default=str))
     return path
 
 

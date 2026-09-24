@@ -153,7 +153,10 @@ async def run_oracle_loop(
         )
 
         # The loop result isn't saved whole; keep its Jev comparisons for the shadow report.
-        save_shadow(runs_dir, shadow, generate_run_id("oracle"))
+        save_shadow(runs_dir, shadow, generate_run_id("oracle"), context={
+            "scenario": {"input": prompt},
+            "agents": [a.model_dump(mode="json") for a in build_agent_infos(agents)],
+        })
         return OracleLoopResult(
             prompt=prompt,
             runs=run_records,
@@ -378,7 +381,10 @@ async def stream_oracle_loop(
             jev_shadow=shadow,
         )
 
-        save_shadow(runs_dir, shadow, generate_run_id("oracle"))
+        save_shadow(runs_dir, shadow, generate_run_id("oracle"), context={
+            "scenario": {"input": prompt},
+            "agents": [a.model_dump(mode="json") for a in build_agent_infos(agents)],
+        })
         yield {"type": "done", "data": result.model_dump(mode="json")}
     finally:
         stop_shadow(shadow_token)
