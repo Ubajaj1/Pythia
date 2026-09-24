@@ -461,3 +461,52 @@ class TestAnthropicErrorHandling:
         client = _make_client(httpx.MockTransport(handler))
         with pytest.raises(AnthropicError):
             await client.generate("prompt")
+
+
+from pythia.anthropic_client import AnthropicRefusal, _response_text
+
+
+def _mock_body(body: dict, seen: list | None = None) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if seen is not None:
+            seen.append(request)
+        return httpx.Response(200, json=body)
+    return httpx.MockTransport(handler)
+
+
+class TestCurrentModels:
+    def test_response_text_skips_thinking_blocks(self):
+        body = {"content": [{"type": "thinking", "thinking": ""}, {"type": "text", "text": '{"a": 1}'}]}
+        assert _response_text(body) == '{"a": 1}'
+
+    def test_response_text_joins_multiple_text_blocks(self):
+        body = {"content": [{"type": "text", "text": '{"a":'}, {"type": "text", "text": " 1}"}]}
+        assert _response_text(body) == '{"a": 1}'
+
+    async def test_thinking_first_response_parses(self):
+        body = {"content": [{"type": "thinking", "thinking": ""}, {"type": "text", "text": '{"stance": 0.4}'}], "stop_reason": "end_turn"}
+        client = _make_client(_mock_body(body))
+        assert await client.generate("p") == {"stance": 0.4}
+
+    async def test_refusal_raises(self):
+        body = {"content": [], "stop_reason": "refusal", "stop_details": {"type": "refusal", "category": "cyber"}}
+        client = _make_client(_mock_body(body))
+        with pytest.raises(AnthropicRefusal):
+            await client.generate("p")
+
+    async def test_opus_5_sends_fallbacks(self):
+        seen = []
+        body = {"content": [{"type": "text", "text": "{}"}], "stop_reason": "end_turn"}
+        client = AnthropicClient(api_key="k", model="claude-opus-5", http_client=httpx.AsyncClient(transport=_mock_body(body, seen)), rpm=0)
+        await client.generate("p")
+        req = seen[0]
+        assert req.headers["anthropic-beta"] == "server-side-fallback-2026-07-01"
+        assert json.loads(req.content)["fallbacks"] == "default"
+
+    async def test_haiku_does_not_send_fallbacks(self):
+        seen = []
+        body = {"content": [{"type": "text", "text": "{}"}], "stop_reason": "end_turn"}
+        client = AnthropicClient(api_key="k", model="claude-haiku-4-5", http_client=httpx.AsyncClient(transport=_mock_body(body, seen)), rpm=0)
+        await client.generate("p")
+        assert "anthropic-beta" not in seen[0].headers
+        assert "fallbacks" not in json.loads(seen[0].content)

@@ -16,8 +16,12 @@ logger = logging.getLogger(__name__)
 
 _API_URL = "https://api.anthropic.com/v1/messages"
 _API_VERSION = "2023-06-01"
-_MAX_TOKENS = 4096
+_MAX_TOKENS = 16000
 _MAX_RETRIES = 10
+
+# Models that get Anthropic's server-side refusal fallback by default.
+FALLBACK_MODELS = {"claude-opus-5"}
+_FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 # Status codes that warrant a retry with backoff. Everything else is treated as
 # a terminal error and raised immediately with a helpful message.
@@ -32,6 +36,15 @@ _RETRYABLE_STATUSES = {429, 500, 502, 503, 504, 529}
 
 class AnthropicError(RuntimeError):
     """Terminal Anthropic API error — don't retry, surface to the user."""
+
+
+class AnthropicRefusal(AnthropicError):
+    """The model declined the request (stop_reason == "refusal")."""
+
+
+def _response_text(body: dict) -> str:
+    """Concatenate text blocks, skipping thinking and other block types."""
+    return "".join(b.get("text", "") for b in body.get("content", []) if b.get("type") == "text")
 
 
 def _extract_balanced_json(text: str) -> str | None:
@@ -97,7 +110,7 @@ def _format_terminal_error(status: int, err_type: str, message: str, model: str)
         "not_found_error": (
             f"Model {model!r} was not found. "
             "Check ANTHROPIC_MODEL — common valid names: "
-            "claude-haiku-4-5-20251001, claude-sonnet-4-5, claude-opus-4-5."
+            "claude-opus-5, claude-sonnet-5, claude-haiku-4-5."
         ),
         "request_too_large": (
             "The prompt exceeded the 32 MB request limit. Try a shorter document "
@@ -115,10 +128,10 @@ class AnthropicClient:
 
     Args:
         api_key: Anthropic API key.
-        model: Model identifier (e.g. "claude-haiku-4-5-20251001").
+        model: Model identifier (e.g. "claude-haiku-4-5").
         http_client: Optional custom httpx client (used by tests).
         max_tokens: Output token cap per call. Grounding and decision summary
-            need headroom — 4096 is a safe default for Haiku.
+            need headroom, and thinking blocks count toward it on current models.
         rpm: Requests per minute limit. 0 = unlimited. Prevents 429s at the
             source. Defaults conservatively to 40 to fit Anthropic's Tier 1
             Haiku limit of 50 RPM with a safety margin.
@@ -161,6 +174,9 @@ class AnthropicClient:
             "anthropic-version": _API_VERSION,
             "content-type": "application/json",
         }
+        if self.model in FALLBACK_MODELS:
+            payload["fallbacks"] = "default"
+            headers["anthropic-beta"] = _FALLBACK_BETA
 
         raw = ""
         stop_reason: str | None = None
@@ -229,8 +245,11 @@ class AnthropicClient:
 
             # Success
             body = response.json()
-            raw = body["content"][0]["text"]
             stop_reason = body.get("stop_reason")
+            if stop_reason == "refusal":
+                category = (body.get("stop_details") or {}).get("category")
+                raise AnthropicRefusal(f"Model {self.model} declined the request (category={category}).")
+            raw = _response_text(body)
             latency_ms = round((time.perf_counter() - t0) * 1000)
 
             logger.info(
