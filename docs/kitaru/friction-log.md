@@ -1,0 +1,14 @@
+# Kitaru friction log
+
+Every time something breaks, the docs don't answer the question, or a workaround is needed, add an entry. The memo is built from this file.
+
+Context: Pythia is a multi-agent opinion-simulation engine with its own httpx LLM clients (Anthropic, OpenAI, Groq, Ollama), no agent framework, and no tool calls. Kitaru 0.27.1, managed cloud, Python 3.12 virtualenv via uv, macOS.
+
+| When (UTC) | Area | What we tried | What happened | Time lost | Severity | Suggested fix |
+|---|---|---|---|---|---|---|
+| 2026-09-23 | Install | `uv pip install -e ".[dev,kitaru]"` with `kitaru[cli,worker,mcp]` | Installed in ~1 s (warm uv cache), no conflicts with Pythia's deps (FastAPI, httpx, pydantic). Existing 307 tests still pass. | 0 | positive | None. Worth saying in docs that the extras coexist with FastAPI apps. |
+| 2026-09-23 | CLI / doctor | `kitaru doctor` before logging in | Reports `config: pass` and `credentials: pass` with file paths, but neither file exists (`FileNotFoundError` when read). Only `server_resolution` fails. Misleading when debugging setup. | 5 min | minor | Report `missing` (or `skip`) when the file does not exist; only `pass` when it exists and parses. |
+| 2026-09-23 | Docs | Looked for a code example of a custom (non-framework) adapter in `docs/…/adapters/custom.md` | Page describes principles ("wrap the public entrypoint") and defers to the `kitaru-adapter-builder` agent skill and the PydanticAI adapter source; no minimal code sample. Had to read installed package source instead. | 20 min | major | Add a 30-line "record a custom agent" example: start session, record one LLM node, finish, read override during replay. |
+| 2026-09-23 | Packaging | Looked for user docs inside the installed wheel | The wheel ships contributor-only `AGENTS.md` files (import-linter layering, "new persistent resource checklist") that read like user guidance to a coding agent but aren't. | 5 min | minor | Exclude contributor `AGENTS.md` from the wheel, or replace with a short "using the SDK from an agent" guide. |
+| 2026-09-23 | SDK design | Mapped the five capabilities from source | Positive: the SDK is readable and consistent; request/response models are well described. `ReplayOverride.model` accepting a map from old to new model is excellent for multi-model agents: it swaps only Pythia's tick calls. | 0 | positive | Put the model-map override on the replay docs' front page; it's the killer feature for multi-model agents. |
+| 2026-09-23 | SDK design | Wanted a synchronous hook for recording LLM calls from inside an existing client wrapper | Recording is async REST calls per batch, so a wrapper must buffer nodes and flush at session end. Fine for us, but every custom adapter will re-implement buffering. | 15 min | minor | Ship a tiny `SessionRecorder` helper (buffer + flush + `model_for(requested)` override lookup) for non-framework agents. |

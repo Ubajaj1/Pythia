@@ -18,6 +18,9 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.25.0",
 ]
+kitaru = [
+    "kitaru[cli,worker,mcp]",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
