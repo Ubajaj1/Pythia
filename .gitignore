@@ -27,6 +27,8 @@ data/processed/*
 data/ground_truth/*
 data/runs/*.json
 data/logs/
+data/jev/
+data/kitaru/
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/ground_truth/.gitkeep
