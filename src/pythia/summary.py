@@ -17,6 +17,18 @@ from pythia.models import (
 )
 
 
+def agent_infos(agents: list[Agent]) -> list[AgentInfo]:
+    """Public view of the cast; camp is the archetype the UI groups agents by."""
+    return [
+        AgentInfo(
+            id=a.id, name=a.name, role=a.role, persona=a.persona,
+            bias=a.bias, bias_strength=a.bias_strength,
+            initial_stance=a.initial_stance, camp=a.archetype or a.role,
+        )
+        for a in agents
+    ]
+
+
 def generate_run_id(prefix: str = "run") -> str:
     """Generate a collision-safe run ID with second precision + UUID suffix."""
     now = datetime.now(timezone.utc)
@@ -80,15 +92,7 @@ def build_run_result(
     if run_id is None:
         run_id = generate_run_id()
 
-    agent_infos = [
-        AgentInfo(
-            id=a.id, name=a.name, role=a.role,
-            persona=a.persona, bias=a.bias,
-            bias_strength=getattr(a, 'bias_strength', 0.5),
-            initial_stance=a.initial_stance,
-        )
-        for a in agents
-    ]
+    infos = agent_infos(agents)
 
     summary = compute_summary(ticks, agents)
 
@@ -100,7 +104,7 @@ def build_run_result(
             title=blueprint.title,
             stance_spectrum=blueprint.stance_spectrum,
         ),
-        agents=agent_infos,
+        agents=infos,
         ticks=ticks,
         summary=summary,
     )

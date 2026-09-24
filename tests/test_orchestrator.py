@@ -121,3 +121,34 @@ class TestRunSimulation:
         )
         # First call is the analyzer — context should appear in prompt
         assert "Extra context here" in llm.calls[0]["prompt"]
+
+
+from pythia.orchestrator import stream_simulation
+
+
+async def test_stream_emits_camps_influence_and_quality(tmp_path):
+    llm = FakeLLMClient(responses=make_all_responses())
+    events = [e async for e in stream_simulation("q", llm=llm, runs_dir=str(tmp_path))]
+    types = [e["type"] for e in events]
+
+    scenario = next(e for e in events if e["type"] == "scenario")
+    assert {a["camp"] for a in scenario["data"]["agents"]} == {"trader", "analyst"}
+
+    tick_idx = [i for i, t in enumerate(types) if t == "tick"]
+    assert len(tick_idx) == 3
+    for i in tick_idx:
+        assert types[i + 1] == "influence"
+        assert events[i + 1]["data"]["tick"] == events[i]["data"]["tick"]
+    first_influence = events[tick_idx[0] + 1]["data"]["edges"]
+    assert any(e["edge_type"] == "message" for e in first_influence)
+
+    done = events[-1]
+    assert done["type"] == "done"
+    assert done["data"]["quality"]["parse_failures"] == 0
+    assert "usage" in done["data"]["quality"]
+    assert {a["camp"] for a in done["data"]["agents"]} == {"trader", "analyst"}
+
+
+async def test_run_simulation_reports_quality(tmp_path):
+    result = await run_simulation("q", llm=FakeLLMClient(responses=make_all_responses()), runs_dir=str(tmp_path))
+    assert result.quality is not None and result.quality.parse_failures == 0

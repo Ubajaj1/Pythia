@@ -13,12 +13,14 @@ from pythia.generator import generate_agents
 from pythia.grounding import extract_grounding, format_grounding_for_prompt
 from pythia.llm import LLMClient
 from pythia.models import (
-    AgentInfo,
     GroundingContext,
+    InfluenceGraph,
+    RunQuality,
     RunResultWithInsights,
     ScenarioInfo,
 )
-from pythia.summary import build_methodology, build_run_result, generate_run_id
+from pythia.summary import agent_infos, build_methodology, build_run_result, generate_run_id
+from pythia.usage import start_usage, stop_usage
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,11 @@ async def _maybe_ground(
     )
 
 
+def influence_payload(graph: InfluenceGraph, tick: int) -> dict:
+    """The influence edges recorded during one tick, for the live UI."""
+    return {"tick": tick, "edges": [e.model_dump(mode="json") for e in graph.edges if e.tick == tick]}
+
+
 async def stream_simulation(
     prompt: str,
     llm: LLMClient,
@@ -71,92 +78,95 @@ async def stream_simulation(
 
     Flow: thinking → grounding? → blueprint → scenario → tick×N → decision → done.
     """
-    final_agents, final_ticks = _resolve_counts(preset, agent_count, tick_count)
+    usage, usage_token = start_usage()
+    try:
+        final_agents, final_ticks = _resolve_counts(preset, agent_count, tick_count)
 
-    yield {"type": "thinking"}
+        yield {"type": "thinking"}
 
-    # Optional grounding from documents
-    grounding = await _maybe_ground(prompt, document_text, document_name, llm)
-    grounding_text = format_grounding_for_prompt(grounding)
+        # Optional grounding from documents
+        grounding = await _maybe_ground(prompt, document_text, document_name, llm)
+        grounding_text = format_grounding_for_prompt(grounding)
 
-    # Merge grounding into context for the analyzer
-    enriched_context = context or ""
-    if grounding_text:
-        enriched_context = (enriched_context + "\n" + grounding_text).strip()
-        yield {"type": "grounding", "data": grounding.model_dump(mode="json")}
+        # Merge grounding into context for the analyzer
+        enriched_context = context or ""
+        if grounding_text:
+            enriched_context = (enriched_context + "\n" + grounding_text).strip()
+            yield {"type": "grounding", "data": grounding.model_dump(mode="json")}
 
-    blueprint = await analyze_scenario(
-        prompt, llm=llm, context=enriched_context or None,
-        agent_count=final_agents, tick_count=final_ticks,
-    )
-    yield {
-        "type": "blueprint",
-        "data": {
-            "title": blueprint.title,
-            "tick_count": blueprint.tick_count,
-            "stance_spectrum": blueprint.stance_spectrum,
-        },
-    }
-
-    agents = await generate_agents(blueprint, llm=llm)
-    agent_infos = [
-        AgentInfo(
-            id=a.id, name=a.name, role=a.role, persona=a.persona,
-            bias=a.bias, bias_strength=a.bias_strength,
-            initial_stance=a.initial_stance,
+        blueprint = await analyze_scenario(
+            prompt, llm=llm, context=enriched_context or None,
+            agent_count=final_agents, tick_count=final_ticks,
         )
-        for a in agents
-    ]
-    yield {
-        "type": "scenario",
-        "data": {
-            "title": blueprint.title,
-            "scenario_type": blueprint.scenario_type,
-            "stance_spectrum": blueprint.stance_spectrum,
-            "tick_count": blueprint.tick_count,
-            "agents": [ai.model_dump(mode="json") for ai in agent_infos],
-        },
-    }
+        yield {
+            "type": "blueprint",
+            "data": {
+                "title": blueprint.title,
+                "tick_count": blueprint.tick_count,
+                "stance_spectrum": blueprint.stance_spectrum,
+            },
+        }
 
-    engine = SimulationEngine(
-        blueprint=blueprint, agents=agents, llm=fast_llm or llm,
-        grounding_context=grounding_text,
-    )
-    tick_records: list = []
-    async for tick_record in engine.run_stream():
-        tick_records.append(tick_record)
-        yield {"type": "tick", "data": tick_record.model_dump(mode="json")}
+        agents = await generate_agents(blueprint, llm=llm)
+        infos = agent_infos(agents)
+        yield {
+            "type": "scenario",
+            "data": {
+                "title": blueprint.title,
+                "scenario_type": blueprint.scenario_type,
+                "stance_spectrum": blueprint.stance_spectrum,
+                "tick_count": blueprint.tick_count,
+                "agents": [ai.model_dump(mode="json") for ai in infos],
+            },
+        }
 
-    result = build_run_result(prompt, blueprint, agents, tick_records)
+        engine = SimulationEngine(
+            blueprint=blueprint, agents=agents, llm=fast_llm or llm,
+            grounding_context=grounding_text,
+        )
+        tick_records: list = []
+        async for tick_record in engine.run_stream():
+            tick_records.append(tick_record)
+            yield {"type": "tick", "data": tick_record.model_dump(mode="json")}
+            yield {"type": "influence", "data": influence_payload(engine.influence_graph, tick_record.tick)}
 
-    # Generate decision summary from influence graph
-    decision_summary = await generate_decision_summary(
-        result, engine.influence_graph, llm, has_grounding=bool(grounding),
-    )
+        result = build_run_result(prompt, blueprint, agents, tick_records)
 
-    enriched = RunResultWithInsights(
-        run_id=result.run_id,
-        scenario=result.scenario,
-        agents=result.agents,
-        ticks=result.ticks,
-        summary=result.summary,
-        influence_graph=engine.influence_graph,
-        decision_summary=decision_summary,
-        methodology=build_methodology(
-            agents=agents,
-            blueprint=blueprint,
-            llm_provider=getattr(llm, 'provider_name', getattr(llm, 'model', 'unknown')),
-            llm_model=getattr(llm, 'model', 'unknown'),
-        ),
-    )
+        # Generate decision summary from influence graph
+        decision_summary = await generate_decision_summary(
+            result, engine.influence_graph, llm, has_grounding=bool(grounding),
+        )
 
-    runs_path = Path(runs_dir)
-    runs_path.mkdir(parents=True, exist_ok=True)
-    (runs_path / f"{result.run_id}.json").write_text(
-        enriched.model_dump_json(indent=2, by_alias=True)
-    )
+        enriched = RunResultWithInsights(
+            run_id=result.run_id,
+            scenario=result.scenario,
+            agents=result.agents,
+            ticks=result.ticks,
+            summary=result.summary,
+            influence_graph=engine.influence_graph,
+            decision_summary=decision_summary,
+            methodology=build_methodology(
+                agents=agents,
+                blueprint=blueprint,
+                llm_provider=getattr(llm, 'provider_name', getattr(llm, 'model', 'unknown')),
+                llm_model=getattr(llm, 'model', 'unknown'),
+            ),
+            quality=RunQuality(
+                parse_retries=engine.parse_retries,
+                parse_failures=engine.parse_failures,
+                usage=usage.to_dict(),
+            ),
+        )
 
-    yield {"type": "done", "data": enriched.model_dump(mode="json")}
+        runs_path = Path(runs_dir)
+        runs_path.mkdir(parents=True, exist_ok=True)
+        (runs_path / f"{result.run_id}.json").write_text(
+            enriched.model_dump_json(indent=2, by_alias=True)
+        )
+
+        yield {"type": "done", "data": enriched.model_dump(mode="json")}
+    finally:
+        stop_usage(usage_token)
 
 
 async def run_simulation(
@@ -172,60 +182,69 @@ async def run_simulation(
     fast_llm: LLMClient | None = None,
 ) -> RunResultWithInsights:
     """Run the full simulation pipeline and return enriched results."""
-    final_agents, final_ticks = _resolve_counts(preset, agent_count, tick_count)
+    usage, usage_token = start_usage()
+    try:
+        final_agents, final_ticks = _resolve_counts(preset, agent_count, tick_count)
 
-    # 1. Optional grounding
-    grounding = await _maybe_ground(prompt, document_text, document_name, llm)
-    grounding_text = format_grounding_for_prompt(grounding)
+        # 1. Optional grounding
+        grounding = await _maybe_ground(prompt, document_text, document_name, llm)
+        grounding_text = format_grounding_for_prompt(grounding)
 
-    enriched_context = context or ""
-    if grounding_text:
-        enriched_context = (enriched_context + "\n" + grounding_text).strip()
+        enriched_context = context or ""
+        if grounding_text:
+            enriched_context = (enriched_context + "\n" + grounding_text).strip()
 
-    # 2. Analyze scenario
-    blueprint = await analyze_scenario(
-        prompt, llm=llm, context=enriched_context or None,
-        agent_count=final_agents, tick_count=final_ticks,
-    )
+        # 2. Analyze scenario
+        blueprint = await analyze_scenario(
+            prompt, llm=llm, context=enriched_context or None,
+            agent_count=final_agents, tick_count=final_ticks,
+        )
 
-    # 3. Generate agents
-    agents = await generate_agents(blueprint, llm=llm)
+        # 3. Generate agents
+        agents = await generate_agents(blueprint, llm=llm)
 
-    # 4. Run simulation with influence tracking
-    engine = SimulationEngine(
-        blueprint=blueprint, agents=agents, llm=fast_llm or llm,
-        grounding_context=grounding_text,
-    )
-    ticks = await engine.run()
+        # 4. Run simulation with influence tracking
+        engine = SimulationEngine(
+            blueprint=blueprint, agents=agents, llm=fast_llm or llm,
+            grounding_context=grounding_text,
+        )
+        ticks = await engine.run()
 
-    # 5. Build result (shared logic with oracle loop)
-    result = build_run_result(prompt, blueprint, agents, ticks)
+        # 5. Build result (shared logic with oracle loop)
+        result = build_run_result(prompt, blueprint, agents, ticks)
 
-    # 6. Generate decision summary
-    decision_summary = await generate_decision_summary(
-        result, engine.influence_graph, llm, has_grounding=bool(grounding),
-    )
+        # 6. Generate decision summary
+        decision_summary = await generate_decision_summary(
+            result, engine.influence_graph, llm, has_grounding=bool(grounding),
+        )
 
-    enriched = RunResultWithInsights(
-        run_id=result.run_id,
-        scenario=result.scenario,
-        agents=result.agents,
-        ticks=result.ticks,
-        summary=result.summary,
-        influence_graph=engine.influence_graph,
-        decision_summary=decision_summary,
-        methodology=build_methodology(
-            agents=agents,
-            blueprint=blueprint,
-            llm_provider=getattr(llm, 'provider_name', getattr(llm, 'model', 'unknown')),
-            llm_model=getattr(llm, 'model', 'unknown'),
-        ),
-    )
+        enriched = RunResultWithInsights(
+            run_id=result.run_id,
+            scenario=result.scenario,
+            agents=result.agents,
+            ticks=result.ticks,
+            summary=result.summary,
+            influence_graph=engine.influence_graph,
+            decision_summary=decision_summary,
+            methodology=build_methodology(
+                agents=agents,
+                blueprint=blueprint,
+                llm_provider=getattr(llm, 'provider_name', getattr(llm, 'model', 'unknown')),
+                llm_model=getattr(llm, 'model', 'unknown'),
+            ),
+            quality=RunQuality(
+                parse_retries=engine.parse_retries,
+                parse_failures=engine.parse_failures,
+                usage=usage.to_dict(),
+            ),
+        )
 
-    # 7. Save to disk
-    runs_path = Path(runs_dir)
-    runs_path.mkdir(parents=True, exist_ok=True)
-    output_file = runs_path / f"{result.run_id}.json"
-    output_file.write_text(enriched.model_dump_json(indent=2, by_alias=True))
+        # 7. Save to disk
+        runs_path = Path(runs_dir)
+        runs_path.mkdir(parents=True, exist_ok=True)
+        output_file = runs_path / f"{result.run_id}.json"
+        output_file.write_text(enriched.model_dump_json(indent=2, by_alias=True))
 
-    return enriched
+        return enriched
+    finally:
+        stop_usage(usage_token)

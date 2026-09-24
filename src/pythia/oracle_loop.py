@@ -19,7 +19,7 @@ from pythia.models import (
     OracleLoopResult,
     OracleRunRecord,
 )
-from pythia.summary import build_run_result, generate_run_id
+from pythia.summary import agent_infos as build_agent_infos, build_run_result, generate_run_id
 from pythia.temple import amend_agent
 
 logger = logging.getLogger(__name__)
@@ -233,16 +233,7 @@ async def stream_oracle_loop(
     # though individual agents may get amended (rules/bias_strength) between
     # runs. Those amendments don't change agent id/name/initial_stance so the
     # UI's Stage/protagonists stay valid.
-    from pythia.models import AgentInfo  # noqa: PLC0415
-
-    agent_infos = [
-        AgentInfo(
-            id=a.id, name=a.name, role=a.role, persona=a.persona,
-            bias=a.bias, bias_strength=a.bias_strength,
-            initial_stance=a.initial_stance,
-        )
-        for a in agents
-    ]
+    agent_infos = build_agent_infos(agents)
     yield {
         "type": "scenario",
         "data": {

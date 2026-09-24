@@ -28,7 +28,7 @@ from pythia.models import (
     InfluenceGraph,
     RunResultWithInsights,
 )
-from pythia.summary import build_run_result, generate_run_id
+from pythia.summary import agent_infos as build_agent_infos, build_run_result, generate_run_id
 
 logger = logging.getLogger(__name__)
 
@@ -302,17 +302,7 @@ async def stream_ensemble(
     # non-streaming run_ensemble — all N runs share the same cast.
     agents = await generate_agents(blueprint, llm=llm)
 
-    # Import AgentInfo locally to keep the module surface small.
-    from pythia.models import AgentInfo  # noqa: PLC0415
-
-    agent_infos = [
-        AgentInfo(
-            id=a.id, name=a.name, role=a.role, persona=a.persona,
-            bias=a.bias, bias_strength=a.bias_strength,
-            initial_stance=a.initial_stance,
-        )
-        for a in agents
-    ]
+    agent_infos = build_agent_infos(agents)
     yield {
         "type": "scenario",
         "data": {

@@ -66,6 +66,8 @@ class Agent(BaseModel):
     initial_stance: float = Field(ge=0.0, le=1.0)
     behavioral_rules: list[str]
     relationships: list[Relationship] = Field(default_factory=list)
+    # The analyzer archetype this agent was generated from; the UI groups agents into camps by it.
+    archetype: str | None = None
 
 
 # --- Simulation Engine I/O ---
@@ -145,6 +147,7 @@ class AgentInfo(BaseModel):
     bias: str
     bias_strength: float = 0.5  # backward compat: old runs default to 0.5
     initial_stance: float
+    camp: str | None = None
 
 
 class RunResult(BaseModel):
@@ -319,6 +322,13 @@ class DecisionSummary(BaseModel):
 
 # --- Extended Run Result ---
 
+class RunQuality(BaseModel):
+    """How cleanly a run executed: retried/failed agent turns and token spend."""
+    parse_retries: int = 0
+    parse_failures: int = 0
+    usage: dict = Field(default_factory=dict)
+
+
 class RunResultWithInsights(BaseModel):
     """RunResult enriched with influence graph and decision summary."""
     model_config = {"populate_by_name": True}
@@ -332,6 +342,7 @@ class RunResultWithInsights(BaseModel):
     decision_summary: DecisionSummary | None = None
     # The Oracle's Method — metadata about how this run was computed
     methodology: "SimulationMethodology | None" = None
+    quality: RunQuality | None = None
 
 
 class SimulationMethodology(BaseModel):

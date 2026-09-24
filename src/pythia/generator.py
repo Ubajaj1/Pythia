@@ -97,6 +97,7 @@ async def _generate_for_archetype(
             initial_stance=a["initial_stance"],
             behavioral_rules=a["behavioral_rules"],
             relationships=[],
+            archetype=archetype.role,
         ))
     logger.info(
         "Archetype generated role=%s agents=%s stances=%s",
