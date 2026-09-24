@@ -269,3 +269,32 @@ class TestDuplicateIdGuard:
             llm=llm,
         )
         assert len(engine.current_stances) == 2
+
+
+class TestTickReliability:
+    def _engine(self, responses):
+        bp = make_test_blueprint().model_copy(update={"tick_count": 1})
+        return SimulationEngine(blueprint=bp, agents=make_test_agents(), llm=FakeLLMClient(responses=responses))
+
+    async def test_empty_response_is_retried_once(self):
+        engine = self._engine([{}, TICK_RESPONSE_A, TICK_RESPONSE_B])
+        ticks = await engine.run()
+        a = next(e for e in ticks[0].events if e.agent_id == "agent-a")
+        assert a.reasoning == TICK_RESPONSE_A["reasoning"]
+        assert engine.parse_retries == 1
+        assert engine.parse_failures == 0
+
+    async def test_two_bad_responses_fall_back_and_count(self):
+        engine = self._engine([{}, {"stance": "not-a-number"}, TICK_RESPONSE_B])
+        ticks = await engine.run()
+        a = next(e for e in ticks[0].events if e.agent_id == "agent-a")
+        assert a.reasoning == "Failed to parse response"
+        assert a.stance == 0.3
+        assert engine.parse_failures == 1
+
+    async def test_retry_prompt_asks_for_json(self):
+        llm = FakeLLMClient(responses=[{}, TICK_RESPONSE_A, TICK_RESPONSE_B])
+        bp = make_test_blueprint().model_copy(update={"tick_count": 1})
+        engine = SimulationEngine(blueprint=bp, agents=make_test_agents(), llm=llm)
+        await engine.run()
+        assert llm.calls[1]["prompt"].startswith("Your previous reply was not valid")

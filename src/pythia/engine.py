@@ -20,6 +20,13 @@ from pythia.models import (
 
 logger = logging.getLogger(__name__)
 
+# A tick reply must carry at least these keys; anything less counts as a parse failure.
+REQUIRED_TICK_KEYS = ("stance", "reasoning")
+REPAIR_PREFIX = (
+    "Your previous reply was not valid. Reply with ONLY the JSON object described below, "
+    "including every field.\n\n"
+)
+
 
 class AgentMemory:
     """Stores an agent's full tick history for prompt inclusion.
@@ -344,6 +351,8 @@ class SimulationEngine:
         self.recent_messages: list[dict] = []
         self._agent_map: dict[str, Agent] = {a.id: a for a in agents}
         self.influence_graph = InfluenceGraph()
+        self.parse_retries = 0
+        self.parse_failures = 0
 
     async def run_stream(self):
         """Async generator — yields each TickRecord as it completes."""
@@ -458,6 +467,26 @@ class SimulationEngine:
             aggregate_stance=round(new_aggregate, 4),
         )
 
+    async def _generate_action(
+        self, agent: Agent, tick_num: int, prompt: str, system: str, previous_stance: float,
+    ) -> TickAction:
+        """Call the LLM for one agent turn; retry once on an unusable reply, then fall back."""
+        for attempt in range(2):
+            try:
+                raw = await self.llm.generate(prompt=prompt if attempt == 0 else REPAIR_PREFIX + prompt, system=system)
+                if isinstance(raw, dict) and all(k in raw for k in REQUIRED_TICK_KEYS):
+                    return TickAction.model_validate(raw)
+                problem = f"missing required keys, got {raw!r}"
+            except ValueError as exc:  # json.JSONDecodeError and pydantic.ValidationError are ValueErrors
+                problem = str(exc)
+            if attempt == 0:
+                self.parse_retries += 1
+                logger.warning("Agent tick unusable, retrying agent=%s tick=%d problem=%s", agent.name, tick_num, problem)
+        self.parse_failures += 1
+        logger.warning("Agent tick failed twice agent=%s tick=%d — using fallback", agent.name, tick_num)
+        return TickAction(stance=previous_stance, action="none", emotion="confused",
+                          reasoning="Failed to parse response", message="")
+
     async def _run_agent_tick(
         self, agent: Agent, tick_num: int, aggregate: float
     ) -> TickEvent:
@@ -490,17 +519,7 @@ class SimulationEngine:
             agent.name, tick_num, system, prompt,
         )
 
-        raw = await self.llm.generate(prompt=prompt, system=system)
-        try:
-            action = TickAction.model_validate(raw)
-        except Exception as exc:
-            logger.warning(
-                "Agent tick parse failed agent=%s tick=%d error=%s raw=%r — using neutral fallback",
-                agent.name, tick_num, exc, raw,
-            )
-            action = TickAction(stance=previous_stance, action="none",
-                                emotion="confused", reasoning="Failed to parse response",
-                                message="")
+        action = await self._generate_action(agent, tick_num, prompt, system, previous_stance)
 
         # Resolve fuzzy/malformed influence_target values to real agent IDs
         resolved_target = _resolve_influence_target(
