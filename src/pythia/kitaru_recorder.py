@@ -93,9 +93,11 @@ class RealKitaruSDK:
         from kitaru.api_models.v1.session import SessionCreateRequest, SessionOrigin, SessionStatus
 
         replaying = bool(os.environ.get("KITARU_REPLAY_ID"))
+        # Inside a replay task the task-scoped token identifies the agent and may not list agents,
+        # so agent and version are left to the server. Recorded sessions carry both, so they can be replayed.
+        agent_id = None if replaying else await self._agent(agent)
         req = SessionCreateRequest(
-            agent_id=await self._agent(agent),
-            # Replays need the version whose run spec re-executes this agent.
+            agent_id=agent_id,
             agent_version_id=None if replaying else self._version_id,
             origin=SessionOrigin.REPLAY if replaying else SessionOrigin.RECORDED,
             status=SessionStatus.IN_PROGRESS,
