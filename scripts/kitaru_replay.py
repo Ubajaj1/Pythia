@@ -25,12 +25,25 @@ def sessions_for(arm: str) -> list[dict]:
     return [r for r in rows if r["arm"] == arm]
 
 
-async def replay_one(client, session_id: str, model_map: dict | None, timeout: float) -> dict:
+async def latest_version_id(client) -> uuid.UUID:
+    """Sessions recorded before a version was attached need the version passed explicitly."""
+    from pythia.kitaru_recorder import AGENT_NAME
+
+    agent = await client.get_agent(AGENT_NAME)
+    page = await client.api.agents.list_versions(agent.id)
+    return max(page.items, key=lambda v: v.version).id
+
+
+async def replay_one(client, session_id: str, model_map: dict | None, timeout: float, version_id: uuid.UUID) -> dict:
+    from kitaru.api_models.v1.plugin import EvaluatorConfig
     from kitaru.api_models.v1.replay_config import ReplayOverride
 
+    # Kitaru requires at least one evaluator per replay; use two built-ins that compare arms.
+    evaluators = [EvaluatorConfig(evaluator="kitaru/latency"), EvaluatorConfig(evaluator="kitaru/llm-call-signals")]
     override = ReplayOverride(model=dict(model_map)) if model_map else None
     t0 = time.time()
-    replay = await client.replay(uuid.UUID(session_id), evaluators=[], override=override, wait=True, timeout=timeout)
+    replay = await client.replay(uuid.UUID(session_id), evaluators=evaluators, agent_version_id=version_id,
+                                  override=override, wait=True, timeout=timeout)
     return {"replay_id": str(replay.id), "status": str(replay.status), "error": replay.error,
             "result_session_id": str(replay.result_session_id) if replay.result_session_id else None,
             "seconds": round(time.time() - t0)}
@@ -44,9 +57,11 @@ async def main(source_arm: str, arms: list[str], limit: int | None, concurrency:
     log = MANIFEST.parent / "replays.jsonl"
 
     async with KitaruClient() as client:
+        version_id = await latest_version_id(client)
+
         async def run(arm: str, row: dict) -> None:
             async with sem:
-                out = await replay_one(client, row["session_id"], ARMS[arm], timeout)
+                out = await replay_one(client, row["session_id"], ARMS[arm], timeout, version_id)
                 out |= {"arm": arm, "baseline_session_id": row["session_id"], "prompt": row["prompt"], "repeat": row["repeat"]}
                 with log.open("a") as fh:
                     fh.write(json.dumps(out) + "\n")

@@ -79,10 +79,14 @@ class RealKitaruSDK:
             raise RuntimeError("Kitaru is not installed. Run: uv pip install -e '.[kitaru]'") from exc
         self._client = KitaruClient()
         self._agent_id: uuid.UUID | None = None
+        self._version_id: uuid.UUID | None = None
 
     async def _agent(self, name: str) -> uuid.UUID:
         if self._agent_id is None:
             self._agent_id = (await self._client.get_agent(name)).id
+            page = await self._client.api.agents.list_versions(self._agent_id)
+            if page.items:
+                self._version_id = max(page.items, key=lambda v: v.version).id
         return self._agent_id
 
     async def start_session(self, agent: str, inputs: dict, name: str, metadata: dict) -> str:
@@ -91,6 +95,8 @@ class RealKitaruSDK:
         replaying = bool(os.environ.get("KITARU_REPLAY_ID"))
         req = SessionCreateRequest(
             agent_id=await self._agent(agent),
+            # Replays need the version whose run spec re-executes this agent.
+            agent_version_id=None if replaying else self._version_id,
             origin=SessionOrigin.REPLAY if replaying else SessionOrigin.RECORDED,
             status=SessionStatus.IN_PROGRESS,
             name=name[:200],
