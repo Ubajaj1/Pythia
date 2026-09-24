@@ -37,3 +37,7 @@ The SDK is **async only** (`kitaru.client.client.KitaruClient`, which wraps `Kit
 - The override is a model map, not a role map: `KitaruRecorder.override_for(role)` is replaced by `model_for(requested_model) -> str | None`, and `RecordingLLMClient` asks for the override by its inner client's model name. The factory still turns `"gpt-4o-mini"` into a client (provider inferred: `gpt-*` → openai, `llama-*` → groq, `claude-*` → anthropic).
 - New file `scripts/kitaru_agent.py` (the replay entrypoint), and a one-time `scripts/kitaru_register.py` for the agent registration.
 - Task 6 triggers replays with `client.replay(...)` per recorded session (two arms: no override, and the model map), instead of Path B's local re-runs.
+
+## Models used (changed 2026-09-24)
+
+Groq has retired `llama-3.3-70b-versatile` and `llama-3.1-8b-instant` (404 on first run). The experiment uses Groq's current equivalents: main and judge `openai/gpt-oss-120b`, tick `openai/gpt-oss-20b`. The swap arm's override is `{"openai/gpt-oss-20b": "gpt-4o-mini"}`. This is a Pythia issue, not a Kitaru one.

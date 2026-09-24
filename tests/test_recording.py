@@ -96,5 +96,6 @@ def test_infer_provider():
     assert infer_provider("llama-3.1-8b-instant") == ("groq", "llama-3.1-8b-instant")
     assert infer_provider("claude-haiku-4-5") == ("anthropic", "claude-haiku-4-5")
     assert infer_provider("openai:gpt-4o") == ("openai", "gpt-4o")
+    assert infer_provider("openai/gpt-oss-20b") == ("groq", "openai/gpt-oss-20b")
     with pytest.raises(ValueError):
         infer_provider("mystery")

@@ -9,6 +9,10 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 MANIFEST = REPO / "data" / "kitaru" / "cohort.jsonl"
 AGENT_COUNT, TICK_COUNT = 5, 8
+# Groq retired the Llama 3.x models Pythia defaulted to; these are its current equivalents.
+MAIN_MODEL = "openai/gpt-oss-120b"   # analysis, generation, judge
+TICK_MODEL = "openai/gpt-oss-20b"    # agent turns (the role the replay swaps)
+SWAP_MAP = {TICK_MODEL: "gpt-4o-mini"}
 
 
 def load_env(path: Path = REPO / ".env") -> None:
@@ -26,16 +30,15 @@ def load_env(path: Path = REPO / ".env") -> None:
 async def record_one(prompt: str, repeat: int, arm: str, model_map: dict[str, str] | None = None,
                      extra_metadata: dict | None = None) -> dict:
     """Run one simulation with Groq main/tick/judge clients, recorded as one Kitaru session."""
-    from pythia.config import GROQ_FAST_MODEL, GROQ_MODEL
     from pythia.experiment import run_experiment_once
     from pythia.kitaru_recorder import KitaruRecorder
     from pythia.llm import build_llm_client
     from pythia.recording import RecordingLLMClient
 
     recorder = KitaruRecorder(model_map=model_map)
-    main = RecordingLLMClient(build_llm_client(provider="groq", model=GROQ_MODEL), "main", recorder)
-    tick = RecordingLLMClient(build_llm_client(provider="groq", model=GROQ_FAST_MODEL), "tick", recorder)
-    judge = RecordingLLMClient(build_llm_client(provider="groq", model=GROQ_MODEL), "judge", recorder)
+    main = RecordingLLMClient(build_llm_client(provider="groq", model=MAIN_MODEL), "main", recorder)
+    tick = RecordingLLMClient(build_llm_client(provider="groq", model=TICK_MODEL), "tick", recorder)
+    judge = RecordingLLMClient(build_llm_client(provider="groq", model=MAIN_MODEL), "judge", recorder)
     inputs = {"prompt": prompt, "agent_count": AGENT_COUNT, "tick_count": TICK_COUNT, "repeat": repeat}
     metadata = {"arm": arm, "repeat": str(repeat), **(extra_metadata or {})}
     session_id = await recorder.start(inputs, name=prompt, metadata=metadata)

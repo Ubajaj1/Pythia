@@ -35,7 +35,7 @@ class NullRecorder:
         return None
 
 
-_PREFIX_PROVIDERS = (("gpt-", "openai"), ("o1", "openai"), ("o3", "openai"), ("claude-", "anthropic"), ("llama", "groq"), ("gemma", "groq"), ("mixtral", "groq"))
+_PREFIX_PROVIDERS = (("openai/", "groq"), ("qwen/", "groq"), ("gpt-", "openai"), ("o1", "openai"), ("o3", "openai"), ("claude-", "anthropic"), ("llama", "groq"), ("gemma", "groq"), ("mixtral", "groq"))
 
 
 def infer_provider(model: str) -> tuple[str, str]:
