@@ -1,6 +1,6 @@
 # Kitaru feedback from building on Pythia
 
-**From:** Utkarsh Bajaj · **Kitaru version:** 0.27.1, managed cloud · **Dates:** 2026-09-23 to 2026-09-24
+**From:** Utkarsh Bajaj · **Kitaru version:** 0.27.1, managed cloud · **Dates:** 2026-09-23 to 2026-09-25
 
 ## What we built
 
@@ -13,8 +13,9 @@ The integration:
 - 20 native replays: 10 unchanged (to measure the noise floor) and 10 with agent turns swapped from `gpt-4.1-nano` to `gpt-4o-mini` via a model-map override.
 - Scoring: Pythia's own metrics written as manual evaluations, plus Kitaru's built-in `kitaru/latency` and `kitaru/llm-call-signals`.
 - One cross-provider replay: Groq `gpt-oss-20b` → OpenAI `gpt-4o-mini`.
+- An investigation for human review of a second experiment (below): 20 sessions, one question each.
 
-Total hands-on time: about a day, including learning the SDK from source.
+Total hands-on time: about a day for record and replay, including learning the SDK from source; under an hour for the investigation.
 
 ## Results
 
@@ -30,6 +31,15 @@ Total hands-on time: about a day, including learning the SDK from source.
 - **The unchanged-replay arm was the most useful thing we measured.** A stochastic multi-agent system re-run unchanged still moves its outcome by about 0.11 on a 0–1 scale, and agreed on the final direction only 30% of the time. Without that noise floor we would have credited the model swap with differences that are just run-to-run variation.
 - **Replays were fast and unattended** once working: about 32 s each, 4 concurrent, all 20 completed with no failures.
 
+## Human review with investigations
+
+Pythia now runs a second model (TypeSafe's Jev) in shadow next to its LLM for some judgement calls, such as which cognitive bias fits an agent's persona. We sent the 20 most confident disagreements to Kitaru as an investigation: one session per disagreement, holding the persona and both answers, each with the question "who is right?". The sessions weren't agent runs at all. We created them through the API under a separate agent, and investigations handled them unchanged.
+
+Utkarsh reviewed 10: Jev was right in 6, the LLM in 2, neither in 2. The review also surfaced something the numbers hadn't: in the cases Jev lost, it was missing context the LLM had. That's a finding about our setup, and exactly what human review is for.
+
+- **What worked:** hand-picking sessions and attaching a specific question to each; verdicts (acceptable, problematic, uncertain) that double as review progress; a review-page link returned when the investigation is created.
+- **What didn't:** see friction #10 and #11.
+
 ## What worked
 
 1. **Model-map overrides.** `{"gpt-4.1-nano": "gpt-4o-mini"}` swaps exactly one role in a multi-model agent, even across providers. For multi-model agents this is the killer feature, and it is buried in `replay_config.py`.
@@ -37,6 +47,7 @@ Total hands-on time: about a day, including learning the SDK from source.
 3. **Failure reporting.** A failed replay's `error` field includes the tail of our process's stderr. That turned two bugs into two-minute fixes.
 4. **Readable SDK.** When docs ran out, the SDK source and request models were clear enough to build from directly.
 5. **Built-in evaluators** (13 in the workspace) and a worker that started cleanly.
+6. **Investigations over arbitrary sessions.** Review isn't limited to recorded agent runs, which made it easy to review a different kind of disagreement.
 
 ## Friction, ranked
 
@@ -51,14 +62,26 @@ Total hands-on time: about a day, including learning the SDK from source.
 | 7 | Minor | **`kitaru doctor` reports `config: pass` / `credentials: pass` when neither file exists.** | Report missing files as missing. |
 | 8 | Minor | **Async-only recording API.** Recording from inside an existing client wrapper means every custom adapter re-implements buffer-and-flush. | Ship a small `SessionRecorder` helper: buffer nodes, flush on finish, `model_for(requested_model)`. |
 | 9 | Minor | **Contributor-only `AGENTS.md` files ship in the wheel.** Coding agents treat them as usage guidance. | Exclude them, or replace with an SDK-usage guide for agents. |
+| 10 | Minor | **Investigation name rules surface only after its sessions exist.** Names may contain only letters, digits, `-` and `_` (422), but the field description doesn't say so. Sessions and the investigation are separate calls, so the sessions were already created and a naive retry would duplicate them. | State the rule in the field description, or accept free-text names alongside a slug. |
+| 11 | Minor | **Investigation answers are free text.** Our question offered three answers, and they came back as "Jev: Optimism Bias", "both_wrong it's somewhere in between", and so on. Fine for one reviewer; a team tallying results would need to normalise them. | Optional answer choices per question, with an optional note. |
+| 12 | Minor | **An expired login reads as `401: Missing bearer credential`.** A day after `kitaru login`, SDK calls failed with that message; logging in again fixed it. | Say the session expired and suggest `kitaru login`. |
 
 ## Product observations
 
 - **Positioning.** The March launch posts describe durable execution (`@flow`, `@checkpoint`, `wait`); the current docs and SDK are replay-based evaluation. Both are valuable, but arriving from the launch post we initially looked for the wrong API. One sentence on the docs home ("Kitaru was durable execution; it is now X") would help.
 - **Stochastic, tool-less agents.** The docs frame an unchanged replay as the faithful baseline, which holds when tool calls are answered from the recording. For agents whose variance comes from the model itself, one unchanged replay is one sample. First-class support would help: N unchanged replays per session, and experiment reports that compare against that spread.
 - **Provider limits.** Replay-heavy workflows multiply provider load. Our first attempt on Groq's free tier (8k tokens/min) would have taken 7+ hours. Per-experiment pacing, and surfacing provider 429s in replay results, would help users see this coming.
-- **Not evaluated:** self-hosted deployment, investigations/human review, analyzers, trace importers, experiments over cohorts (we drove replays individually).
+- **Not evaluated:** self-hosted deployment, analyzers, insights, trace importers, experiments over cohorts (we drove replays individually).
+
+## How it compares
+
+We didn't benchmark alternatives, so this is positioning as we understand it:
+
+- **Covered well elsewhere:** tracing, comparing experiments, and human review queues. LangSmith, Langfuse (open source, self-hostable), Braintrust and others do these well.
+- **Where Kitaru is different: replay.** LangGraph can rewind to a checkpoint, but only inside LangGraph. LangSmith and Langfuse experiments re-run your code over a dataset with a harness you write. Kitaru makes "replay this recorded session with this override" one server-side operation: a worker re-runs the real agent, the result is linked to the original, and both are scored, whatever the framework.
+
+For a tool-less agent like Pythia, a script plus a tracing tool would cover most of what we did, and we'd have written more glue. The case gets much stronger for agents that call tools, where serving tool results from the recording isolates the one change being tested. That was the one capability we couldn't exercise. A buyer's first question will be "why not LangSmith or Langfuse?", and the docs should answer it head-on.
 
 ## Would we keep using it?
 
-**Yes, conditionally.** Once the four setup issues were fixed, the record → replay → compare loop answered a real question for Pythia ("can we use a cheaper model for agent turns?") in minutes, with evidence we trust because the noise-floor arm was cheap to run. The condition: issues 1–3 above are the difference between "an afternoon" and "a day" for a custom agent, and #2 can silently break every replay for anyone on an older uv.
+**Yes, conditionally.** Once the four setup issues were fixed, the record → replay → compare loop answered a real question for Pythia ("can we use a cheaper model for agent turns?") in minutes, with evidence we trust because the noise-floor arm was cheap to run. Investigations then gave us a clean way to put a second experiment in front of a human reviewer. The condition: issues 1–3 above are the difference between "an afternoon" and "a day" for a custom agent, and #2 can silently break every replay for anyone on an older uv.
