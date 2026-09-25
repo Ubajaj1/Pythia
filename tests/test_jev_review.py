@@ -44,3 +44,36 @@ def test_oracle_shadow_with_context_is_reviewable(tmp_path):
                             "agents": [{"id": "sara", "name": "Sara", "role": "chef", "persona": "p"}]})
     items = bias_review_items(str(tmp_path))
     assert len(items) == 1 and items[0]["inputs"]["scenario"] == "Q?"
+
+
+def test_normalise_free_text_answers():
+    from pythia.jev.review import normalise_answer
+    assert normalise_answer("Jev: Optimism Bias") == "jev"
+    assert normalise_answer("LLM: Status Quo Bias") == "llm"
+    assert normalise_answer("both_wrong it's somewhere in between") == "both_wrong"
+    assert normalise_answer("neither fits") == "both_wrong"
+    assert normalise_answer("both fit") == "both_fit"
+    assert normalise_answer("hmm") is None
+
+
+def test_outcome_prefers_the_answer_and_falls_back_to_the_verdict():
+    from pythia.jev.review import review_outcome
+    assert review_outcome("problematic", ["both_wrong"]) == "both_wrong"
+    assert review_outcome("acceptable", []) == "jev"
+    assert review_outcome("problematic", None) == "llm"
+    assert review_outcome("uncertain", []) == "unsure"
+    assert review_outcome(None, None) is None  # not reviewed yet
+
+
+def test_tally_counts_jev_wins_over_decided_cases():
+    from pythia.jev.review import tally
+    t = tally(["jev"] * 6 + ["llm"] * 2 + ["both_wrong"] * 2 + [None] * 10)
+    assert t["reviewed"] == 10 and t["pending"] == 10
+    assert t["counts"]["jev"] == 6
+    assert abs(t["jev_win_rate"] - 0.6) < 1e-9
+    assert t["meets_review_bar"] is True
+
+
+def test_both_fit_counts_for_jev():
+    from pythia.jev.review import tally
+    assert tally(["both_fit", "llm"])["jev_win_rate"] == 0.5
