@@ -18,10 +18,12 @@ from pythia.models import (
     InfluenceGraph,
     OracleLoopResult,
     OracleRunRecord,
+    RunQuality,
 )
 from pythia.jev.core import start_shadow, stop_shadow
 from pythia.jev.report import save_shadow
 from pythia.summary import agent_infos as build_agent_infos, build_run_result, generate_run_id
+from pythia.usage import start_usage, stop_usage
 from pythia.temple import amend_agent
 
 logger = logging.getLogger(__name__)
@@ -47,6 +49,8 @@ async def run_oracle_loop(
     Optionally grounds the simulation with document data.
     """
     shadow, shadow_token = start_shadow()
+    usage, usage_token = start_usage()
+    retries = failures = 0  # summed over every run's engine
     try:
         logger.info(
             "Oracle Loop started prompt=%r max_runs=%d",
@@ -88,6 +92,7 @@ async def run_oracle_loop(
                 grounding_context=grounding_text,
             )
             ticks = await engine.run()
+            retries, failures = retries + engine.parse_retries, failures + engine.parse_failures
             last_influence_graph = engine.influence_graph
 
             # Build result using shared logic (same summary computation as orchestrator)
@@ -163,9 +168,11 @@ async def run_oracle_loop(
             coherence_history=[r.coherence_score for r in run_records],
             decision_summary=decision_summary,
             influence_graph=last_influence_graph,
+            quality=RunQuality(parse_retries=retries, parse_failures=failures, usage=usage.to_dict()),
             jev_shadow=shadow,
         )
     finally:
+        stop_usage(usage_token)
         stop_shadow(shadow_token)
 
 
@@ -200,6 +207,8 @@ async def stream_oracle_loop(
       - done (final OracleLoopResult)
     """
     shadow, shadow_token = start_shadow()
+    usage, usage_token = start_usage()
+    retries = failures = 0  # summed over every run's engine
     try:
         logger.info(
             "Oracle stream started prompt=%r max_runs=%d",
@@ -294,6 +303,7 @@ async def stream_oracle_loop(
                     },
                 }
 
+            retries, failures = retries + engine.parse_retries, failures + engine.parse_failures
             last_influence_graph = engine.influence_graph
 
             run_id = generate_run_id(prefix="oracle")
@@ -378,6 +388,7 @@ async def stream_oracle_loop(
             coherence_history=[r.coherence_score for r in run_records],
             decision_summary=decision_summary,
             influence_graph=last_influence_graph,
+            quality=RunQuality(parse_retries=retries, parse_failures=failures, usage=usage.to_dict()),
             jev_shadow=shadow,
         )
 
@@ -387,4 +398,5 @@ async def stream_oracle_loop(
         })
         yield {"type": "done", "data": result.model_dump(mode="json")}
     finally:
+        stop_usage(usage_token)
         stop_shadow(shadow_token)

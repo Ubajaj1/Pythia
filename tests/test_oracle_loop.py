@@ -176,3 +176,32 @@ class TestRunOracleLoop:
         result = await run_oracle_loop("My unique prompt", llm, max_runs=1, runs_dir=str(tmp_path))
 
         assert result.prompt == "My unique prompt"
+
+
+class _MeteredLLM(FakeLLMClient):
+    """Records usage like the real clients do, so the loop's usage scope can be checked."""
+
+    async def generate(self, prompt, system=None, seed=None):
+        from pythia.usage import record_usage
+        record_usage("gpt-4o-mini", 10, 5)
+        return await super().generate(prompt, system=system, seed=seed)
+
+
+@patch("pythia.oracle_loop.evaluate_run", new_callable=AsyncMock)
+async def test_oracle_loop_reports_its_cost(mock_eval, tmp_path):
+    mock_eval.return_value = ALL_COHERENT
+    llm = _MeteredLLM(responses=make_sim_responses())
+    result = await run_oracle_loop("Test event", llm, max_runs=5, runs_dir=str(tmp_path))
+    assert result.quality is not None
+    assert result.quality.usage["calls"] == len(llm.calls)
+    assert result.quality.usage["cost_usd"] > 0
+    assert result.quality.parse_failures == 0
+
+
+@patch("pythia.oracle_loop.evaluate_run", new_callable=AsyncMock)
+async def test_streamed_oracle_loop_reports_its_cost(mock_eval, tmp_path):
+    from pythia.oracle_loop import stream_oracle_loop
+    mock_eval.return_value = ALL_COHERENT
+    llm = _MeteredLLM(responses=make_sim_responses())
+    events = [e async for e in stream_oracle_loop("Test event", llm, max_runs=5, runs_dir=str(tmp_path))]
+    assert events[-1]["data"]["quality"]["usage"]["calls"] == len(llm.calls)

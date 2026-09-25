@@ -189,6 +189,8 @@ class OracleLoopResult(BaseModel):
     coherence_history: list[float]
     decision_summary: "DecisionSummary | None" = None
     influence_graph: "InfluenceGraph | None" = None
+    # Retries, fallbacks and token spend summed over every run in the loop.
+    quality: "RunQuality | None" = None
     # Jev shadow comparisons (pythia.jev.core.record_shadow) collected during the loop.
     jev_shadow: list[dict] = Field(default_factory=list)
 
