@@ -91,8 +91,10 @@ def _serve(args: argparse.Namespace) -> None:
     uvicorn.run(app, host="0.0.0.0", port=args.port)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(prog="pythia", description="Pythia simulation engine")
+SUBCOMMANDS = ("serve", "oracle")
+
+
+def _add_global_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--ollama-url", default=OLLAMA_BASE_URL, help="Ollama API base URL")
     parser.add_argument("--model", default=None, help="Model name (overrides provider default)")
     parser.add_argument(
@@ -110,6 +112,13 @@ def main() -> None:
     )
     parser.add_argument("--log-dir", default=LOG_DIR, help="Directory for log files")
 
+
+def _command_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="pythia", description="Pythia simulation engine",
+        epilog='Run a single simulation with: pythia [options] "<decision or question>"',
+    )
+    _add_global_options(parser)
     subparsers = parser.add_subparsers(dest="command")
 
     serve_parser = subparsers.add_parser("serve", help="Start API server")
@@ -119,11 +128,50 @@ def main() -> None:
     oracle_parser.add_argument("prompt", help="Decision or question to simulate")
     oracle_parser.add_argument("--runs", type=int, default=5, help="Maximum number of simulation runs")
     oracle_parser.add_argument("--context", default=None, help="Additional context paragraph")
+    return parser
 
-    parser.add_argument("prompt", nargs="?", default=None, help="Decision or question to simulate")
+
+def _run_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="pythia", description="Run one Pythia simulation")
+    _add_global_options(parser)
+    parser.add_argument("prompt", help="Decision or question to simulate")
     parser.add_argument("--context", default=None, help="Additional context paragraph")
+    parser.set_defaults(command=None)
+    return parser
 
-    args = parser.parse_args()
+
+def _first_positional(argv: list[str]) -> str | None:
+    """The first argument that isn't an option or an option's value (every global option takes one)."""
+    skip = False
+    for arg in argv:
+        if skip:
+            skip = False
+        elif arg in ("-h", "--help"):
+            continue
+        elif arg.startswith("-"):
+            skip = "=" not in arg
+        else:
+            return arg
+    return None
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    """`pythia serve`, `pythia oracle "<prompt>"`, or `pythia "<prompt>"` for a single run.
+
+    One parser can't take both subcommands and a bare prompt (argparse reads the prompt as
+    a subcommand name), so the first positional argument picks the parser.
+    """
+    first = _first_positional(argv)
+    if first is None or first in SUBCOMMANDS:
+        args = _command_parser().parse_args(argv)
+        if args.command is None:
+            args.prompt = None
+        return args
+    return _run_parser().parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(sys.argv[1:] if argv is None else argv)
 
     from pythia.logger import setup_logging
     setup_logging(level=args.log_level, log_dir=args.log_dir)
@@ -135,8 +183,9 @@ def main() -> None:
     elif args.prompt:
         asyncio.run(_run(args))
     else:
-        parser.print_help()
+        _command_parser().print_help()
         sys.exit(1)
 
 
-main()
+if __name__ == "__main__":
+    main()
