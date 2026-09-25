@@ -8,7 +8,8 @@ from pythia.models import Agent, AgentArchetype, Relationship, ScenarioBlueprint
 def _bp():
     return ScenarioBlueprint(
         scenario_type="t", title="T", description="d", stance_spectrum=["vb", "b", "n", "bu", "vbu"],
-        agent_archetypes=[AgentArchetype(role="trader", count=2, description="d", bias="anchoring", stance_range=(0.2, 0.6))],
+        agent_archetypes=[AgentArchetype(role="trader", count=2, description="Day traders resisting new rules", bias="anchoring",
+                                          stance_range=(0.2, 0.6), suggested_biases=["anchoring", "status_quo_bias"])],
         dynamics="x", tick_count=3,
     )
 
@@ -30,6 +31,7 @@ class FakeJev:
 
     async def ask(self, state, questions):
         self.calls.append(questions)
+        self.state = state
         return {k: self.answers[k] for k in questions}
 
 
@@ -105,3 +107,13 @@ async def test_relationships_are_recorded_per_pair():
     assert pairs["a->b:relationship"]["llm"] == "follows" and pairs["a->b:relationship"]["jev"] == "distrusts"
     assert pairs["a->b:relationship"]["agree"] is False
     assert pairs["b->a:relationship"]["llm"] == "none" and pairs["b->a:relationship"]["agree"] is True
+
+
+async def test_jev_sees_the_archetype_context_the_llm_had():
+    jev = FakeJev(_answers())
+    await apply_behaviour_judgement(_agents(), _bp(), jev=jev, mode="shadow")
+    a = next(c for c in jev.state["cast"] if c["id"] == "a")
+    assert a["archetype"]["description"] == "Day traders resisting new rules"
+    assert a["archetype"]["suggested_biases"] == ["anchoring", "status_quo_bias"]
+    # Behavioural rules were written from the LLM's own bias pick; showing them would leak its answer.
+    assert "behavioral_rules" not in a and "bias" not in a

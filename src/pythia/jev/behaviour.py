@@ -14,17 +14,38 @@ from pythia.jev.mapping import (
     RELATION_OPTIONS, STRENGTH_LEVELS, clamp, ordinal_agree, prune_relationships,
     stance_from_score, strength_from_score,
 )
-from pythia.models import Agent, Relationship, ScenarioBlueprint
+from pythia.models import Agent, AgentArchetype, Relationship, ScenarioBlueprint
 
 logger = logging.getLogger(__name__)
 PIECE = "behaviour"
 
 
+def _archetype_for(agent: Agent, blueprint: ScenarioBlueprint) -> AgentArchetype | None:
+    return next((arch for arch in blueprint.agent_archetypes if arch.role == (agent.archetype or agent.role)), None)
+
+
 def _state(agents: list[Agent], blueprint: ScenarioBlueprint) -> dict:
+    """What Jev sees: the same scenario and archetype context the LLM generated each agent from.
+
+    Behavioural rules and the LLM's settings are left out: the rules were written from the
+    LLM's own bias pick, so including them would hand Jev the answer it is being compared on.
+    """
+    cast = []
+    for a in agents:
+        entry = {"id": a.id, "name": a.name, "role": a.role, "persona": a.persona}
+        arch = _archetype_for(a, blueprint)
+        if arch is not None:
+            entry["archetype"] = {
+                "name": arch.role,
+                "description": arch.description,
+                "suggested_biases": arch.suggested_biases or [arch.bias],
+            }
+        cast.append(entry)
     return {
         "scenario": f"{blueprint.title}. {blueprint.description}",
+        "dynamics": blueprint.dynamics,
         "stance_spectrum_low_to_high": blueprint.stance_spectrum,
-        "cast": [{"id": a.id, "name": a.name, "role": a.role, "persona": a.persona} for a in agents],
+        "cast": cast,
     }
 
 
@@ -33,7 +54,11 @@ def _agent_questions(agents: list[Agent], blueprint: ScenarioBlueprint) -> dict:
     qs = {}
     for a in agents:
         who = f"{a.name} (id {a.id})"
-        qs[f"{a.id}:bias"] = ChoiceQ(f"Which cognitive bias best fits {who}'s persona?", bias_options)
+        qs[f"{a.id}:bias"] = ChoiceQ(
+            f"Which cognitive bias best fits {who}, given their persona and archetype? The archetype's "
+            "suggested biases are a starting point, and agents sharing an archetype usually differ.",
+            bias_options,
+        )
         qs[f"{a.id}:strength"] = ScoreQ(f"How strongly does that bias shape {who}'s thinking?", STRENGTH_LEVELS)
         qs[f"{a.id}:stance"] = ScoreQ(f"Before any discussion, where does {who} stand on the scenario?", blueprint.stance_spectrum)
     return qs
@@ -47,10 +72,8 @@ def _relation_questions(agents: list[Agent]) -> dict:
 
 
 def _range_for(agent: Agent, blueprint: ScenarioBlueprint) -> tuple[float, float]:
-    for arch in blueprint.agent_archetypes:
-        if arch.role == (agent.archetype or agent.role):
-            return arch.stance_range
-    return (0.0, 1.0)
+    arch = _archetype_for(agent, blueprint)
+    return arch.stance_range if arch is not None else (0.0, 1.0)
 
 
 async def apply_behaviour_judgement(
