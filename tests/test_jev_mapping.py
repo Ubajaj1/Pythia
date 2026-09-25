@@ -37,3 +37,10 @@ def test_prune_relationships_keeps_top_three_non_none():
     out = prune_relationships(pairs)
     assert [t for t, _, _ in out["a"]] == ["b", "c", "e"]
     assert out["a"][0] == ("b", "follows", 0.9)
+
+
+def test_strength_agreement_needs_the_same_level():
+    from pythia.jev.mapping import strength_agree, strength_level
+    assert strength_level(0.72) == 2 and strength_level(0.49) == 1
+    assert strength_agree(0.7, 0.71)
+    assert not strength_agree(0.5, 0.7)  # moderate vs strong: adjacent is not agreement on a 4-level scale

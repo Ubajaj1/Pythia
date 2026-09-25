@@ -3,6 +3,7 @@
 Writes docs/jev/shadow-report.md and data/jev/disagreements-<piece>.jsonl.
 """
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -18,10 +19,15 @@ ROWS = [("behaviour", "bias"), ("behaviour", "strength"), ("behaviour", "stance"
         ("behaviour", "relationship"), ("coherence", "coherence"), ("stance", "stance")]
 SCREENING_LOG = Path("data/jev/screening.jsonl")
 
-records = load_shadow(RUNS_DIR)
+ap = argparse.ArgumentParser()
+ap.add_argument("--runs-dir", default=RUNS_DIR, help="Folder of saved runs to report on (e.g. one batch)")
+ap.add_argument("--out", default="docs/jev/shadow-report.md")
+args = ap.parse_args()
+
+records = load_shadow(args.runs_dir)
 lines = [
     "# Jev shadow report", "",
-    f"{len(records)} shadow records from {len({r['run'] for r in records})} saved runs.", "",
+    f"{len(records)} shadow records from {len({r['run'] for r in records})} saved runs in `{args.runs_dir}`.", "",
     "| Piece | Field | Records | Confident share | Agreement at ≥0.7 | Fallback rate | Meets bars |",
     "|---|---|---|---|---|---|---|",
 ]
@@ -53,6 +59,6 @@ lines += [
     "Meeting the bars is necessary, not sufficient: review the exported disagreements "
     "(data/jev/disagreements-*.jsonl) before switching a piece to primary.",
 ]
-Path("docs/jev").mkdir(parents=True, exist_ok=True)
-Path("docs/jev/shadow-report.md").write_text("\n".join(lines) + "\n")
+Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+Path(args.out).write_text("\n".join(lines) + "\n")
 print("\n".join(lines))

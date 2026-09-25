@@ -12,7 +12,7 @@ from pythia.biases import BIAS_CATALOG
 from pythia.jev.core import Answer, ChoiceQ, JevAsker, ScoreQ, get_jev, jev_mode, record_shadow, threshold
 from pythia.jev.mapping import (
     RELATION_OPTIONS, STRENGTH_LEVELS, clamp, ordinal_agree, prune_relationships,
-    stance_from_score, strength_from_score,
+    stance_from_score, strength_agree, strength_from_score,
 )
 from pythia.models import Agent, AgentArchetype, Relationship, ScenarioBlueprint
 
@@ -114,7 +114,7 @@ async def apply_behaviour_judgement(
         s_val = round(strength_from_score(float(strength.value)), 4)
         use = primary and strength.confidence >= cut
         record_shadow(PIECE, f"{a.id}:strength", a.bias_strength, s_val, strength.confidence,
-                      abs(s_val - a.bias_strength) <= 0.2, "jev" if use else "llm")
+                      strength_agree(s_val, a.bias_strength), "jev" if use else "llm")
         if use:
             upd["bias_strength"] = s_val
 

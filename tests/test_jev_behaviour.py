@@ -117,3 +117,15 @@ async def test_jev_sees_the_archetype_context_the_llm_had():
     assert a["archetype"]["suggested_biases"] == ["anchoring", "status_quo_bias"]
     # Behavioural rules were written from the LLM's own bias pick; showing them would leak its answer.
     assert "behavioral_rules" not in a and "bias" not in a
+
+
+async def test_strength_agreement_is_by_level():
+    records, token = start_shadow()
+    try:
+        # LLM strength 0.5 (moderate); Jev score 2.0 -> 0.7 (strong): within 0.2 but a different level.
+        answers = _answers()
+        answers["a:strength"] = Answer(2.0, 0.9, {})
+        await apply_behaviour_judgement(_agents(), _bp(), jev=FakeJev(answers), mode="shadow")
+    finally:
+        stop_shadow(token)
+    assert next(r for r in records if r["key"] == "a:strength")["agree"] is False

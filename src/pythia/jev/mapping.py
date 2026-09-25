@@ -34,6 +34,16 @@ def strength_from_score(score: float) -> float:
     return STRENGTH_VALUES[i] + (STRENGTH_VALUES[i + 1] - STRENGTH_VALUES[i]) * f
 
 
+def strength_level(v: float) -> int:
+    """Nearest STRENGTH_LEVELS index for a bias strength."""
+    return min(range(len(STRENGTH_VALUES)), key=lambda i: abs(STRENGTH_VALUES[i] - v))
+
+
+def strength_agree(a: float, b: float) -> bool:
+    """Same strength level. Adjacent levels don't count: on a 4-level scale that accepts 3 of 4."""
+    return strength_level(a) == strength_level(b)
+
+
 def stance_from_score(score: float, n_levels: int) -> float:
     """Score position in [0, n-1] → stance in [0, 1], landing on bin midpoints."""
     return clamp((score + 0.5) / n_levels, 0.0, 1.0)
